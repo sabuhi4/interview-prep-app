@@ -1,10 +1,15 @@
+'use client';
+
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Code2, Settings } from 'lucide-react';
 
+const ThemeToggle = dynamic(() => import('@/components/theme-toggle'), { ssr: false });
+
 export default function Navigation() {
   return (
-    <nav className="border-b bg-white/50 backdrop-blur-sm sticky top-0 z-50">
+    <nav className="border-b bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
@@ -22,6 +27,7 @@ export default function Navigation() {
             <Link href="/quiz">
               <Button variant="ghost">Quiz</Button>
             </Link>
+            <ThemeToggle />
             <Link href="/admin">
               <Button variant="ghost" size="icon" title="Admin Panel">
                 <Settings className="w-4 h-4" />
