@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Brain, Code2, Sparkles } from 'lucide-react';
+import { BookOpen, Brain, Code2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function Home() {
@@ -17,7 +17,6 @@ export default function Home() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        // Fetch counts from Supabase
         const [questionsResult, quizResult, categoriesResult] = await Promise.all([
           supabase.from('questions').select('id', { count: 'exact', head: true }),
           supabase.from('quiz_questions').select('id', { count: 'exact', head: true }),
@@ -31,8 +30,12 @@ export default function Home() {
           quizQuestionsCount: quizResult.count || 0,
           categoriesCount: uniqueCategories.size,
         });
-      } catch (error) {
-        console.error('Error fetching stats:', error);
+      } catch {
+        setStats({
+          questionsCount: 0,
+          quizQuestionsCount: 0,
+          categoriesCount: 0,
+        });
       }
     }
 
@@ -128,10 +131,10 @@ export default function Home() {
           </Card>
           <Card className="text-center">
             <CardContent className="pt-6">
-              <div className="flex justify-center mb-2">
-                <Sparkles className="w-8 h-8 text-yellow-500" />
+              <div className="text-3xl font-bold text-yellow-500 dark:text-yellow-400 mb-2">
+                3
               </div>
-              <div className="text-sm text-slate-600 dark:text-slate-400">Modern UI</div>
+              <div className="text-sm text-slate-600 dark:text-slate-400">Difficulty Levels</div>
             </CardContent>
           </Card>
         </div>
