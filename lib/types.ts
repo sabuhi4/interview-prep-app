@@ -23,3 +23,13 @@ export interface QuizResult {
   totalQuestions: number;
   answers: { questionId: string; correct: boolean }[];
 }
+
+export interface StoredQuizResult {
+  id: string;
+  score: number;
+  totalQuestions: number;
+  percentage: number;
+  category: string;
+  difficulty: string;
+  completedAt: string;
+}
