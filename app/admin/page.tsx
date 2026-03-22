@@ -198,7 +198,7 @@ export default function AdminPage() {
               Logout
             </Button>
           </div>
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Admin Panel
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
@@ -230,7 +230,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 mb-6 h-auto sm:h-10">
                 <TabsTrigger value="qa">Q&A Question</TabsTrigger>
                 <TabsTrigger value="quiz">Quiz Question</TabsTrigger>
                 <TabsTrigger value="behavioral" className="gap-1.5">

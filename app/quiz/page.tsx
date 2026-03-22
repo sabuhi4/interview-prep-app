@@ -225,7 +225,7 @@ export default function QuizPage() {
           <Link href="/"><Button variant="ghost" className="mb-4"><ArrowLeft className="w-4 h-4 mr-2" />Back to Home</Button></Link>
           <Card>
             <CardHeader>
-              <CardTitle className="text-3xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Quiz Setup</CardTitle>
+              <CardTitle className="text-2xl md:text-3xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Quiz Setup</CardTitle>
               <CardDescription>Customize your quiz by selecting category and difficulty</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -320,7 +320,7 @@ export default function QuizPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="text-center">
-                <div className="text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">{percentage}%</div>
+                <div className="text-4xl sm:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">{percentage}%</div>
                 <p className="text-slate-600 dark:text-slate-400">{score} out of {totalQuestions} correct</p>
               </div>
               <Progress value={percentage} className="h-3" />

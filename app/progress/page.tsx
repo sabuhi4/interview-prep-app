@@ -32,7 +32,7 @@ export default function ProgressPage() {
               <ArrowLeft className="w-4 h-4 mr-2" />Back to Home
             </Button>
           </Link>
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Your Progress
           </h1>
           <p className="text-slate-600 dark:text-slate-400">Track your learning journey and performance</p>
@@ -58,7 +58,7 @@ export default function ProgressPage() {
         </Card>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
           <Card>
             <CardContent className="pt-6 text-center">
               <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto mb-2" />
@@ -121,9 +121,9 @@ export default function ProgressPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {recentResults.map((result) => (
-                <div key={result.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-900">
+                <div key={result.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-lg bg-slate-50 dark:bg-slate-900">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${result.percentage >= 70 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'}`}>
+                    <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center text-sm font-bold ${result.percentage >= 70 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'}`}>
                       {result.percentage}%
                     </div>
                     <div>
@@ -133,7 +133,7 @@ export default function ProgressPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-1 sm:gap-2 pl-13 sm:pl-0">
                     <Badge variant="outline" className="text-xs">{result.category}</Badge>
                     <Badge variant="outline" className="text-xs capitalize">{result.difficulty}</Badge>
                   </div>

@@ -59,7 +59,7 @@ export default function QuestionsClient({ questions, categories, isAdmin }: Ques
               <ArrowLeft className="w-4 h-4 mr-2" />Back to Home
             </Button>
           </Link>
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Interview Questions
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
@@ -134,7 +134,7 @@ export default function QuestionsClient({ questions, categories, isAdmin }: Ques
                     <div className="flex items-stretch">
                       <AccordionPrimitive.Header asChild>
                         <div className="flex-1 min-w-0">
-                          <AccordionPrimitive.Trigger className="flex w-full items-start gap-4 text-left px-6 py-4 hover:no-underline group [&[data-state=open]>svg:last-child]:rotate-180">
+                          <AccordionPrimitive.Trigger className="flex w-full items-start gap-2 sm:gap-4 text-left px-3 sm:px-6 py-3 sm:py-4 hover:no-underline group [&[data-state=open]>svg:last-child]:rotate-180">
                             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mt-0.5">
                               <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">{index + 1}</span>
                             </div>
@@ -183,7 +183,7 @@ export default function QuestionsClient({ questions, categories, isAdmin }: Ques
 
                     <AccordionContent>
                       <Separator className="mb-4" />
-                      <div className="px-6 pb-4">
+                      <div className="px-3 sm:px-6 pb-4">
                         <h4 className="font-semibold mb-2 text-indigo-600 dark:text-indigo-400">Answer:</h4>
                         <p className="leading-relaxed mb-4 text-foreground">{q.answer}</p>
                         <div className="flex flex-wrap gap-2">

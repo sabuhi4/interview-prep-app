@@ -129,7 +129,7 @@ export default function FlashcardsPage() {
               <ArrowLeft className="w-4 h-4 mr-2" />Back to Home
             </Button>
           </Link>
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Flashcards
           </h1>
           <p className="text-slate-600 dark:text-slate-400">Review key concepts with interactive flip cards</p>

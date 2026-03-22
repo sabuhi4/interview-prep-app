@@ -250,7 +250,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
           <Progress value={progress} className="h-1.5 mb-6" />
 
           <Card className="mb-6 shadow-md">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex flex-wrap gap-2 mb-4">
                 <Badge variant="outline">{card.category}</Badge>
                 <Badge className={getDifficultyColor(card.difficulty)}>{card.difficulty}</Badge>
@@ -278,21 +278,21 @@ export default function ListenClient({ questions, categories }: ListenClientProp
           </Card>
 
           <div className="flex items-center justify-center gap-4 mb-4">
-            <Button variant="outline" size="icon" onClick={handlePrev} className="w-12 h-12 rounded-full">
-              <SkipBack className="w-5 h-5" />
+            <Button variant="outline" size="icon" onClick={handlePrev} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full">
+              <SkipBack className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
             <Button
               onClick={handlePlayPause}
               size="icon"
-              className="w-16 h-16 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg"
+              className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg"
             >
               {isPlaying
-                ? <Pause className="w-6 h-6" />
-                : <Play className="w-6 h-6 ml-0.5" />
+                ? <Pause className="w-5 h-5 sm:w-6 sm:h-6" />
+                : <Play className="w-5 h-5 sm:w-6 sm:h-6 ml-0.5" />
               }
             </Button>
-            <Button variant="outline" size="icon" onClick={handleNext} className="w-12 h-12 rounded-full">
-              <SkipForward className="w-5 h-5" />
+            <Button variant="outline" size="icon" onClick={handleNext} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full">
+              <SkipForward className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
           </div>
 
@@ -324,7 +324,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
             <div className="p-3 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl">
               <Headphones className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               Listen Mode
             </h1>
           </div>
