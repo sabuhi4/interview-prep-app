@@ -29,13 +29,11 @@ export async function createQuestionAction(questionData: Omit<Question, 'id'>) {
       .single();
 
     if (error) {
-      console.error('Error creating question:', error);
       return { success: false, error: error.message };
     }
 
     return { success: true, data };
   } catch (error: unknown) {
-    console.error('Unexpected error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return { success: false, error: message };
   }
@@ -68,13 +66,47 @@ export async function createQuizQuestionAction(questionData: Omit<QuizQuestion, 
       .single();
 
     if (error) {
-      console.error('Error creating quiz question:', error);
       return { success: false, error: error.message };
     }
 
     return { success: true, data };
   } catch (error: unknown) {
-    console.error('Unexpected error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: message };
+  }
+}
+
+export async function createBehavioralQuestionAction(questionData: {
+  difficulty: 'easy' | 'medium' | 'hard';
+  question: string;
+  answer: string;
+  tags: string[];
+}) {
+  try {
+    const validation = validateQuestion({ ...questionData, category: 'Behavioral' });
+    if (!validation.valid) {
+      return { success: false, error: validation.errors.join(', ') };
+    }
+
+    const id = generateQuestionId('behavioral', 'question');
+
+    const { data, error } = await supabaseAdmin
+      .from('questions')
+      .insert([{
+        id,
+        category: 'Behavioral',
+        admin_only: true,
+        ...questionData,
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return { success: false, error: message };
   }

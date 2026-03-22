@@ -1,12 +1,12 @@
 import { isAuthenticated } from '@/lib/auth';
 import { fetchQuestions, fetchAllQuestionsAdmin, fetchCategories, fetchAllCategoriesAdmin } from '@/lib/api/questions';
-import QuestionsClient from './questions-client';
+import ListenClient from './listen-client';
 
-export default async function QuestionsPage() {
+export default async function ListenPage() {
   const isAdmin = await isAuthenticated();
   const [questions, categories] = await Promise.all([
     isAdmin ? fetchAllQuestionsAdmin() : fetchQuestions(),
     isAdmin ? fetchAllCategoriesAdmin() : fetchCategories(),
   ]);
-  return <QuestionsClient questions={questions} categories={categories} isAdmin={isAdmin} />;
+  return <ListenClient questions={questions} categories={categories} />;
 }

@@ -12,6 +12,7 @@ const navLinks = [
   { href: '/questions', label: 'Questions' },
   { href: '/quiz', label: 'Quiz' },
   { href: '/flashcards', label: 'Flashcards' },
+  { href: '/listen', label: 'Listen' },
   { href: '/progress', label: 'Progress' },
 ];
 

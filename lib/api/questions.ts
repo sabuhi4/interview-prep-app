@@ -1,10 +1,22 @@
 import { supabase } from '../supabase';
 import { Question, QuizQuestion } from '../types';
 
-/**
- * Fetch all Q&A questions from Supabase
- */
 export async function fetchQuestions(): Promise<Question[]> {
+  const { data, error } = await supabase
+    .from('questions')
+    .select('*')
+    .eq('admin_only', false)
+    .order('category', { ascending: true })
+    .order('difficulty', { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to fetch questions: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+export async function fetchAllQuestionsAdmin(): Promise<Question[]> {
   const { data, error } = await supabase
     .from('questions')
     .select('*')
@@ -12,16 +24,12 @@ export async function fetchQuestions(): Promise<Question[]> {
     .order('difficulty', { ascending: true });
 
   if (error) {
-    console.error('Error fetching questions:', error);
-    return [];
+    throw new Error(`Failed to fetch questions: ${error.message}`);
   }
 
   return data || [];
 }
 
-/**
- * Fetch Q&A questions by category
- */
 export async function fetchQuestionsByCategory(category: string): Promise<Question[]> {
   if (category === 'All') {
     return fetchQuestions();
@@ -34,17 +42,12 @@ export async function fetchQuestionsByCategory(category: string): Promise<Questi
     .order('difficulty', { ascending: true });
 
   if (error) {
-    console.error('Error fetching questions by category:', error);
-    return [];
+    throw new Error(`Failed to fetch questions by category: ${error.message}`);
   }
 
   return data || [];
 }
 
-/**
- * Fetch all quiz questions from Supabase
- * Maps database snake_case to TypeScript camelCase
- */
 export async function fetchQuizQuestions(): Promise<QuizQuestion[]> {
   const { data, error } = await supabase
     .from('quiz_questions')
@@ -53,11 +56,9 @@ export async function fetchQuizQuestions(): Promise<QuizQuestion[]> {
     .order('difficulty', { ascending: true });
 
   if (error) {
-    console.error('Error fetching quiz questions:', error);
-    return [];
+    throw new Error(`Failed to fetch quiz questions: ${error.message}`);
   }
 
-  // Map snake_case to camelCase
   return (data || []).map((q: {
     id: string;
     category: string;
@@ -79,9 +80,6 @@ export async function fetchQuizQuestions(): Promise<QuizQuestion[]> {
   }));
 }
 
-/**
- * Fetch quiz questions by category and difficulty
- */
 export async function fetchQuizQuestionsByFilters(
   category?: string,
   difficulty?: string
@@ -99,11 +97,9 @@ export async function fetchQuizQuestionsByFilters(
   const { data, error } = await query.order('category', { ascending: true });
 
   if (error) {
-    console.error('Error fetching filtered quiz questions:', error);
-    return [];
+    throw new Error(`Failed to fetch filtered quiz questions: ${error.message}`);
   }
 
-  // Map snake_case to camelCase
   return (data || []).map((q: {
     id: string;
     category: string;
@@ -125,28 +121,35 @@ export async function fetchQuizQuestionsByFilters(
   }));
 }
 
-/**
- * Get list of unique categories from questions
- */
 export async function fetchCategories(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('questions')
+    .select('category')
+    .eq('admin_only', false)
+    .order('category', { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to fetch categories: ${error.message}`);
+  }
+
+  const categories = [...new Set(data.map((q: { category: string }) => q.category))];
+  return ['All', ...categories];
+}
+
+export async function fetchAllCategoriesAdmin(): Promise<string[]> {
   const { data, error } = await supabase
     .from('questions')
     .select('category')
     .order('category', { ascending: true });
 
   if (error) {
-    console.error('Error fetching categories:', error);
-    return [];
+    throw new Error(`Failed to fetch categories: ${error.message}`);
   }
 
-  // Get unique categories
   const categories = [...new Set(data.map((q: { category: string }) => q.category))];
   return ['All', ...categories];
 }
 
-/**
- * Get list of difficulty levels
- */
 export function getDifficultyLevels(): string[] {
   return ['All', 'easy', 'medium', 'hard'];
 }

@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Plus, Loader2, CheckCircle2, AlertCircle, LogOut } from 'lucide-react';
-import { createQuestionAction, createQuizQuestionAction } from './actions';
+import { createQuestionAction, createQuizQuestionAction, createBehavioralQuestionAction } from './actions';
 import { logoutAction } from '@/lib/auth';
 import { Question, QuizQuestion } from '@/lib/types';
+import { Lock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function AdminPage() {
@@ -21,6 +22,13 @@ export default function AdminPage() {
 
   const [qaForm, setQaForm] = useState({
     category: '',
+    difficulty: 'medium' as 'easy' | 'medium' | 'hard',
+    question: '',
+    answer: '',
+    tags: '',
+  });
+
+  const [behavioralForm, setBehavioralForm] = useState({
     difficulty: 'medium' as 'easy' | 'medium' | 'hard',
     question: '',
     answer: '',
@@ -39,6 +47,15 @@ export default function AdminPage() {
     explanation: '',
     tags: '',
   });
+
+  const resetBehavioralForm = () => {
+    setBehavioralForm({
+      difficulty: 'medium',
+      question: '',
+      answer: '',
+      tags: '',
+    });
+  };
 
   const resetQaForm = () => {
     setQaForm({
@@ -63,6 +80,33 @@ export default function AdminPage() {
       explanation: '',
       tags: '',
     });
+  };
+
+  const handleBehavioralSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const result = await createBehavioralQuestionAction({
+        difficulty: behavioralForm.difficulty,
+        question: behavioralForm.question.trim(),
+        answer: behavioralForm.answer.trim(),
+        tags: behavioralForm.tags.split(',').map(t => t.trim()).filter(t => t),
+      });
+
+      if (!result.success) {
+        setMessage({ type: 'error', text: `Error: ${result.error}` });
+      } else {
+        setMessage({ type: 'success', text: 'Behavioral question added successfully!' });
+        resetBehavioralForm();
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      setMessage({ type: 'error', text: `Unexpected error: ${message}` });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleQaSubmit = async (e: React.FormEvent) => {
@@ -186,9 +230,12 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsList className="grid w-full grid-cols-3 mb-6">
                 <TabsTrigger value="qa">Q&A Question</TabsTrigger>
                 <TabsTrigger value="quiz">Quiz Question</TabsTrigger>
+                <TabsTrigger value="behavioral" className="gap-1.5">
+                  <Lock className="w-3 h-3" />Behavioral
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="qa">
@@ -363,6 +410,84 @@ export default function AdminPage() {
                       <>
                         <Plus className="w-4 h-4 mr-2" />
                         Add Quiz Question
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+              <TabsContent value="behavioral">
+                <div className="mb-4 p-3 rounded-lg bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                  <p className="text-sm text-purple-700 dark:text-purple-300">
+                    Behavioral questions are only visible to authenticated admins.
+                  </p>
+                </div>
+                <form onSubmit={handleBehavioralSubmit} className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Category</label>
+                    <Input value="Behavioral" disabled className="opacity-60" />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Difficulty *</label>
+                    <Tabs value={behavioralForm.difficulty} onValueChange={(value) => setBehavioralForm({ ...behavioralForm, difficulty: value as 'easy' | 'medium' | 'hard' })}>
+                      <TabsList className="w-full">
+                        <TabsTrigger value="easy" className="flex-1">Easy</TabsTrigger>
+                        <TabsTrigger value="medium" className="flex-1">Medium</TabsTrigger>
+                        <TabsTrigger value="hard" className="flex-1">Hard</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Question *</label>
+                    <textarea
+                      className="w-full min-h-[100px] px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-950"
+                      placeholder="e.g., Tell me about yourself. Describe a time you handled conflict."
+                      value={behavioralForm.question}
+                      onChange={(e) => setBehavioralForm({ ...behavioralForm, question: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Guidance / Model Answer *</label>
+                    <textarea
+                      className="w-full min-h-[150px] px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-950"
+                      placeholder="How to structure the answer, key points to cover, STAR method tips..."
+                      value={behavioralForm.answer}
+                      onChange={(e) => setBehavioralForm({ ...behavioralForm, answer: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Tags * (comma-separated)</label>
+                    <Input
+                      placeholder="e.g., communication, leadership, conflict"
+                      value={behavioralForm.tags}
+                      onChange={(e) => setBehavioralForm({ ...behavioralForm, tags: e.target.value })}
+                      required
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Separate tags with commas</p>
+                  </div>
+
+                  <Separator />
+
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Adding Question...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Behavioral Question
                       </>
                     )}
                   </Button>

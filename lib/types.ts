@@ -5,6 +5,7 @@ export interface Question {
   question: string;
   answer: string;
   tags: string[];
+  admin_only?: boolean;
 }
 
 export interface QuizQuestion {
