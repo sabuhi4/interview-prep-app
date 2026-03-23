@@ -112,6 +112,44 @@ export async function createBehavioralQuestionAction(questionData: {
   }
 }
 
+export async function updateQuestionAction(id: string, data: {
+  category?: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  question?: string;
+  answer?: string;
+  tags?: string[];
+  admin_only?: boolean;
+}) {
+  try {
+    const { error } = await supabaseAdmin
+      .from('questions')
+      .update(data)
+      .eq('id', id);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: message };
+  }
+}
+
+export async function fetchAllQuestionsForAdminAction() {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('questions')
+      .select('*')
+      .order('category')
+      .order('difficulty');
+
+    if (error) return { success: false, error: error.message, data: [] };
+    return { success: true, data: data ?? [] };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: message, data: [] };
+  }
+}
+
 export async function deleteQuestionAction(id: string) {
   try {
     const { error } = await supabaseAdmin
