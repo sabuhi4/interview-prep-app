@@ -59,6 +59,8 @@ export default function ListenClient({ questions, categories }: ListenClientProp
   const sessionQRef = useRef<Question[]>([]);
   const speedRef = useRef(1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const keepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const generationRef = useRef(0);
 
   const filteredQuestions = questions.filter((q) => {
     const matchesCategory = selectedCategory === 'All' || q.category === selectedCategory;
@@ -72,12 +74,18 @@ export default function ListenClient({ questions, categories }: ListenClientProp
     timerRef.current = null;
   }, []);
 
+  const clearKeepAlive = useCallback(() => {
+    if (keepAliveRef.current) clearInterval(keepAliveRef.current);
+    keepAliveRef.current = null;
+  }, []);
+
   const cancelSpeech = useCallback(() => {
     clearTimer();
+    clearKeepAlive();
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
-  }, [clearTimer]);
+  }, [clearTimer, clearKeepAlive]);
 
   const speakRef = useRef<() => void>(() => {});
 
@@ -89,6 +97,9 @@ export default function ListenClient({ questions, categories }: ListenClientProp
 
     window.speechSynthesis.cancel();
     clearTimer();
+    clearKeepAlive();
+
+    const gen = ++generationRef.current;
 
     const text = phaseRef.current === 'question'
       ? `Question ${currentIndexRef.current + 1}. ${q.question}`
@@ -97,7 +108,18 @@ export default function ListenClient({ questions, categories }: ListenClientProp
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = speedRef.current;
 
-    utterance.onend = () => {
+    keepAliveRef.current = setInterval(() => {
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }
+    }, 10000);
+
+    let ended = false;
+    const advance = () => {
+      if (ended || gen !== generationRef.current) return;
+      ended = true;
+      clearKeepAlive();
       if (!isPlayingRef.current) return;
 
       if (phaseRef.current === 'question') {
@@ -125,8 +147,14 @@ export default function ListenClient({ questions, categories }: ListenClientProp
       }
     };
 
+    utterance.onend = advance;
+
+    const wordCount = text.split(/\s+/).length;
+    const estimatedMs = Math.ceil((wordCount / (140 * speedRef.current)) * 60000) + 3000;
+    timerRef.current = setTimeout(advance, estimatedMs);
+
     window.speechSynthesis.speak(utterance);
-  }, [clearTimer]);
+  }, [clearTimer, clearKeepAlive]);
 
   useEffect(() => { speakRef.current = speak; }, [speak]);
 
