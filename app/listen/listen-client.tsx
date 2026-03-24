@@ -13,7 +13,7 @@ import { getDifficultyLevels } from '@/lib/api/questions';
 import { useProgress } from '@/lib/hooks/useProgress';
 import {
   ArrowLeft, Play, Pause, SkipBack, SkipForward, RotateCcw,
-  Headphones, Bookmark, Shuffle,
+  Headphones, Bookmark, Shuffle, Loader2,
 } from 'lucide-react';
 
 interface ListenClientProps {
@@ -34,6 +34,8 @@ const SPEEDS = [0.75, 1, 1.25, 1.5, 2];
 const PAUSE_AFTER_QUESTION = 1500;
 const PAUSE_AFTER_ANSWER = 2500;
 
+type PendingAudio = { gen: number; url: string };
+
 export default function ListenClient({ questions, categories }: ListenClientProps) {
   const difficulties = getDifficultyLevels();
   const { bookmarkedIds } = useProgress(questions);
@@ -49,9 +51,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [phase, setPhase] = useState<'question' | 'answer'>('question');
-  const [ttsSupported] = useState(
-    () => typeof window !== 'undefined' ? 'speechSynthesis' in window : true
-  );
+  const [generating, setGenerating] = useState(false);
 
   const isPlayingRef = useRef(false);
   const currentIndexRef = useRef(0);
@@ -59,8 +59,16 @@ export default function ListenClient({ questions, categories }: ListenClientProp
   const sessionQRef = useRef<Question[]>([]);
   const speedRef = useRef(1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const keepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const generationRef = useRef(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const prefetchAbortRef = useRef<AbortController | null>(null);
+  const pendingAudioRef = useRef<PendingAudio | null>(null);
+  const awaitingGenRef = useRef<number | null>(null);
+
+  const speakRef = useRef<() => void>(() => {});
+  const prefetchRef = useRef<(gen: number) => void>(() => {});
+  const playUrlRef = useRef<(gen: number, url: string) => void>(() => {});
 
   const filteredQuestions = questions.filter((q) => {
     const matchesCategory = selectedCategory === 'All' || q.category === selectedCategory;
@@ -74,90 +82,153 @@ export default function ListenClient({ questions, categories }: ListenClientProp
     timerRef.current = null;
   }, []);
 
-  const clearKeepAlive = useCallback(() => {
-    if (keepAliveRef.current) clearInterval(keepAliveRef.current);
-    keepAliveRef.current = null;
-  }, []);
-
   const cancelSpeech = useCallback(() => {
     clearTimer();
-    clearKeepAlive();
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+    abortRef.current?.abort();
+    abortRef.current = null;
+    prefetchAbortRef.current?.abort();
+    prefetchAbortRef.current = null;
+    if (pendingAudioRef.current) {
+      URL.revokeObjectURL(pendingAudioRef.current.url);
+      pendingAudioRef.current = null;
     }
-  }, [clearTimer, clearKeepAlive]);
+    awaitingGenRef.current = null;
+    if (audioRef.current) {
+      audioRef.current.onended = null;
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+  }, [clearTimer]);
 
-  const speakRef = useRef<() => void>(() => {});
+  // Play a blob URL and wire up the advance logic
+  const playUrl = useCallback((gen: number, url: string) => {
+    if (gen !== generationRef.current || !isPlayingRef.current) {
+      URL.revokeObjectURL(url);
+      return;
+    }
 
+    setGenerating(false);
+
+    const audio = new Audio(url);
+    audio.playbackRate = speedRef.current;
+    audioRef.current = audio;
+
+    prefetchRef.current(gen);
+
+    audio.onended = () => {
+      URL.revokeObjectURL(url);
+      if (gen !== generationRef.current || !isPlayingRef.current) return;
+
+      const pauseMs = phaseRef.current === 'question' ? PAUSE_AFTER_QUESTION : PAUSE_AFTER_ANSWER;
+
+      timerRef.current = setTimeout(() => {
+        if (!isPlayingRef.current || gen !== generationRef.current) return;
+
+        if (phaseRef.current === 'question') {
+          phaseRef.current = 'answer';
+          setPhase('answer');
+        } else {
+          const next = currentIndexRef.current + 1 < sessionQRef.current.length
+            ? currentIndexRef.current + 1 : 0;
+          currentIndexRef.current = next;
+          setCurrentIndex(next);
+          phaseRef.current = 'question';
+          setPhase('question');
+        }
+
+        const nextGen = gen + 1;
+        generationRef.current = nextGen;
+
+        const pending = pendingAudioRef.current;
+        if (pending?.gen === nextGen) {
+          pendingAudioRef.current = null;
+          playUrlRef.current(nextGen, pending.url);
+        } else {
+          // Prefetch is still in-flight — show spinner; prefetch will call playUrl when done
+          setGenerating(true);
+          awaitingGenRef.current = nextGen;
+        }
+      }, pauseMs);
+    };
+
+    audio.play().catch(() => {});
+  }, []);
+
+  // Pre-fetch the next segment while the current one plays
+  const prefetch = useCallback((currentGen: number) => {
+    const idx = currentIndexRef.current;
+    const ph = phaseRef.current;
+    const qs = sessionQRef.current;
+    if (!qs.length || !isPlayingRef.current) return;
+
+    const nextIdx = idx + 1 < qs.length ? idx + 1 : 0;
+    const nextText = ph === 'question'
+      ? qs[idx].answer
+      : `Question ${nextIdx + 1}. ${qs[nextIdx].question}`;
+    const nextGen = currentGen + 1;
+
+    prefetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    prefetchAbortRef.current = controller;
+
+    fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: nextText }),
+      signal: controller.signal,
+    })
+      .then((r) => r.blob())
+      .then((blob) => {
+        if (controller.signal.aborted) return;
+        const url = URL.createObjectURL(blob);
+
+        if (awaitingGenRef.current === nextGen && isPlayingRef.current) {
+          awaitingGenRef.current = null;
+          playUrlRef.current(nextGen, url);
+        } else {
+          pendingAudioRef.current = { gen: nextGen, url };
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Kick off generation for the current position
   const speak = useCallback(() => {
     if (!isPlayingRef.current || !sessionQRef.current.length) return;
 
     const q = sessionQRef.current[currentIndexRef.current];
     if (!q) return;
 
-    window.speechSynthesis.cancel();
-    clearTimer();
-    clearKeepAlive();
+    cancelSpeech();
 
     const gen = ++generationRef.current;
-
     const text = phaseRef.current === 'question'
       ? `Question ${currentIndexRef.current + 1}. ${q.question}`
       : q.answer;
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = speedRef.current;
+    setGenerating(true);
 
-    keepAliveRef.current = setInterval(() => {
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.pause();
-        window.speechSynthesis.resume();
-      }
-    }, 10000);
+    const controller = new AbortController();
+    abortRef.current = controller;
 
-    let ended = false;
-    const advance = () => {
-      if (ended || gen !== generationRef.current) return;
-      ended = true;
-      clearKeepAlive();
-      if (!isPlayingRef.current) return;
-
-      if (phaseRef.current === 'question') {
-        timerRef.current = setTimeout(() => {
-          if (!isPlayingRef.current) return;
-          phaseRef.current = 'answer';
-          setPhase('answer');
-          speakRef.current();
-        }, PAUSE_AFTER_QUESTION);
-      } else {
-        timerRef.current = setTimeout(() => {
-          if (!isPlayingRef.current) return;
-          const next = currentIndexRef.current + 1;
-          if (next >= sessionQRef.current.length) {
-            currentIndexRef.current = 0;
-            setCurrentIndex(0);
-          } else {
-            currentIndexRef.current = next;
-            setCurrentIndex(next);
-          }
-          phaseRef.current = 'question';
-          setPhase('question');
-          speakRef.current();
-        }, PAUSE_AFTER_ANSWER);
-      }
-    };
-
-    utterance.onend = advance;
-
-    const wordCount = text.split(/\s+/).length;
-    const estimatedMs = Math.ceil((wordCount / (140 * speedRef.current)) * 60000) + 3000;
-    timerRef.current = setTimeout(advance, estimatedMs);
-
-    window.speechSynthesis.speak(utterance);
-  }, [clearTimer, clearKeepAlive]);
+    fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+      signal: controller.signal,
+    })
+      .then((r) => r.blob())
+      .then((blob) => {
+        if (controller.signal.aborted || gen !== generationRef.current) return;
+        playUrlRef.current(gen, URL.createObjectURL(blob));
+      })
+      .catch(() => setGenerating(false));
+  }, [cancelSpeech]);
 
   useEffect(() => { speakRef.current = speak; }, [speak]);
-
+  useEffect(() => { prefetchRef.current = prefetch; }, [prefetch]);
+  useEffect(() => { playUrlRef.current = playUrl; }, [playUrl]);
   useEffect(() => () => cancelSpeech(), [cancelSpeech]);
 
   const startSession = () => {
@@ -182,8 +253,10 @@ export default function ListenClient({ questions, categories }: ListenClientProp
   const handlePlayPause = () => {
     if (isPlayingRef.current) {
       cancelSpeech();
+      generationRef.current++;
       isPlayingRef.current = false;
       setIsPlaying(false);
+      setGenerating(false);
     } else {
       isPlayingRef.current = true;
       setIsPlaying(true);
@@ -193,6 +266,8 @@ export default function ListenClient({ questions, categories }: ListenClientProp
 
   const handleNext = () => {
     cancelSpeech();
+    generationRef.current++;
+    setGenerating(false);
     const next = currentIndexRef.current + 1 < sessionQRef.current.length
       ? currentIndexRef.current + 1 : 0;
     currentIndexRef.current = next;
@@ -204,6 +279,8 @@ export default function ListenClient({ questions, categories }: ListenClientProp
 
   const handlePrev = () => {
     cancelSpeech();
+    generationRef.current++;
+    setGenerating(false);
     const prev = Math.max(0, currentIndexRef.current - 1);
     currentIndexRef.current = prev;
     phaseRef.current = 'question';
@@ -214,6 +291,8 @@ export default function ListenClient({ questions, categories }: ListenClientProp
 
   const handleRepeat = () => {
     cancelSpeech();
+    generationRef.current++;
+    setGenerating(false);
     phaseRef.current = 'question';
     setPhase('question');
     if (isPlayingRef.current) speakRef.current();
@@ -221,18 +300,18 @@ export default function ListenClient({ questions, categories }: ListenClientProp
 
   const handleExit = () => {
     cancelSpeech();
+    generationRef.current++;
     isPlayingRef.current = false;
     setIsPlaying(false);
+    setGenerating(false);
     setSessionActive(false);
   };
 
+  // Speed change doesn't require re-fetching — update playbackRate in place
   const handleSpeedChange = (newSpeed: number) => {
     speedRef.current = newSpeed;
     setSpeed(newSpeed);
-    if (isPlayingRef.current) {
-      cancelSpeech();
-      speakRef.current();
-    }
+    if (audioRef.current) audioRef.current.playbackRate = newSpeed;
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -310,13 +389,14 @@ export default function ListenClient({ questions, categories }: ListenClientProp
               <SkipBack className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
             <Button
-              onClick={handlePlayPause}
-              size="icon"
+              onClick={handlePlayPause} size="icon"
               className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg"
             >
-              {isPlaying
-                ? <Pause className="w-5 h-5 sm:w-6 sm:h-6" />
-                : <Play className="w-5 h-5 sm:w-6 sm:h-6 ml-0.5" />
+              {generating
+                ? <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
+                : isPlaying
+                  ? <Pause className="w-5 h-5 sm:w-6 sm:h-6" />
+                  : <Play className="w-5 h-5 sm:w-6 sm:h-6 ml-0.5" />
               }
             </Button>
             <Button variant="outline" size="icon" onClick={handleNext} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full">
@@ -361,16 +441,6 @@ export default function ListenClient({ questions, categories }: ListenClientProp
           </p>
         </div>
 
-        {!ttsSupported && (
-          <Card className="mb-6 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950">
-            <CardContent className="pt-4 pb-4">
-              <p className="text-sm text-amber-700 dark:text-amber-300">
-                Your browser does not support Text-to-Speech. Try Chrome, Safari, or Edge.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
         <div className="max-w-2xl space-y-6">
           <Card>
             <CardContent className="pt-6 space-y-5">
@@ -398,19 +468,15 @@ export default function ListenClient({ questions, categories }: ListenClientProp
 
               <div className="flex flex-wrap gap-3">
                 <Button
-                  variant={onlyBookmarked ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setOnlyBookmarked(!onlyBookmarked)}
-                  className="gap-2"
+                  variant={onlyBookmarked ? 'default' : 'outline'} size="sm"
+                  onClick={() => setOnlyBookmarked(!onlyBookmarked)} className="gap-2"
                 >
                   <Bookmark className={`w-4 h-4 ${onlyBookmarked ? 'fill-current' : ''}`} />
                   Bookmarked only
                 </Button>
                 <Button
-                  variant={shouldShuffle ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setShouldShuffle(!shouldShuffle)}
-                  className="gap-2"
+                  variant={shouldShuffle ? 'default' : 'outline'} size="sm"
+                  onClick={() => setShouldShuffle(!shouldShuffle)} className="gap-2"
                 >
                   <Shuffle className="w-4 h-4" />
                   Shuffle
@@ -421,12 +487,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
                 <label className="text-sm font-medium mb-2 block">Playback Speed</label>
                 <div className="flex gap-2">
                   {SPEEDS.map((s) => (
-                    <Button
-                      key={s}
-                      variant={speed === s ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSpeed(s)}
-                    >
+                    <Button key={s} variant={speed === s ? 'default' : 'outline'} size="sm" onClick={() => setSpeed(s)}>
                       {s}x
                     </Button>
                   ))}
@@ -440,9 +501,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
               {filteredQuestions.length} questions ready
             </p>
             <Button
-              onClick={startSession}
-              disabled={filteredQuestions.length === 0 || !ttsSupported}
-              size="lg"
+              onClick={startSession} disabled={filteredQuestions.length === 0} size="lg"
               className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 gap-2 px-8"
             >
               <Headphones className="w-5 h-5" />
