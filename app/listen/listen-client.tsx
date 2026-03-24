@@ -82,7 +82,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
     timerRef.current = null;
   }, []);
 
-  const cancelSpeech = useCallback(() => {
+  const cancelSpeech = useCallback((destroyElement = false) => {
     clearTimer();
     abortRef.current?.abort();
     abortRef.current = null;
@@ -97,7 +97,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
       audioRef.current.onended = null;
       audioRef.current.pause();
       audioRef.current.src = '';
-      audioRef.current = null;
+      if (destroyElement) audioRef.current = null;
     }
   }, [clearTimer]);
 
@@ -110,9 +110,12 @@ export default function ListenClient({ questions, categories }: ListenClientProp
 
     setGenerating(false);
 
-    const audio = new Audio(url);
+    // Reuse the existing unlocked audio element — creating a new Audio() from
+    // an async context breaks mobile Safari's autoplay policy.
+    const audio = audioRef.current!;
+    audio.onended = null;
+    audio.src = url;
     audio.playbackRate = speedRef.current;
-    audioRef.current = audio;
 
     prefetchRef.current(gen);
 
@@ -229,10 +232,13 @@ export default function ListenClient({ questions, categories }: ListenClientProp
   useEffect(() => { speakRef.current = speak; }, [speak]);
   useEffect(() => { prefetchRef.current = prefetch; }, [prefetch]);
   useEffect(() => { playUrlRef.current = playUrl; }, [playUrl]);
-  useEffect(() => () => cancelSpeech(), [cancelSpeech]);
+  useEffect(() => () => cancelSpeech(true), [cancelSpeech]);
 
   const startSession = () => {
-    cancelSpeech();
+    cancelSpeech(true);
+    // Create and unlock the audio element synchronously inside the user gesture
+    // so mobile Safari allows all subsequent play() calls on this element.
+    audioRef.current = new Audio();
     const qs = shouldShuffle ? shuffleArray(filteredQuestions) : [...filteredQuestions];
 
     sessionQRef.current = qs;
@@ -299,7 +305,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
   };
 
   const handleExit = () => {
-    cancelSpeech();
+    cancelSpeech(true);
     generationRef.current++;
     isPlayingRef.current = false;
     setIsPlaying(false);
