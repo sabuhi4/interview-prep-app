@@ -238,6 +238,7 @@ export default function AdminPage() {
 
   const handleLogout = async () => {
     await logoutAction();
+    window.location.href = '/admin/login';
   };
 
   return (

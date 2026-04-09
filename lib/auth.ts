@@ -1,7 +1,6 @@
 'use server';
 
 import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const AUTH_COOKIE_NAME = 'admin-authenticated';
@@ -34,7 +33,7 @@ export async function loginAction(password: string) {
 export async function logoutAction() {
   const cookieStore = await cookies();
   cookieStore.delete(AUTH_COOKIE_NAME);
-  redirect('/admin/login');
+  return { success: true };
 }
 
 export async function isAuthenticated(): Promise<boolean> {
