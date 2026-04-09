@@ -65,6 +65,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
   const prefetchAbortRef = useRef<AbortController | null>(null);
   const pendingAudioRef = useRef<PendingAudio | null>(null);
   const awaitingGenRef = useRef<number | null>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
   const speakRef = useRef<() => void>(() => {});
   const prefetchRef = useRef<(gen: number) => void>(() => {});
@@ -95,6 +96,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
     awaitingGenRef.current = null;
     if (audioRef.current) {
       audioRef.current.onended = null;
+      audioRef.current.onpause = null;
       audioRef.current.pause();
       audioRef.current.src = '';
       if (destroyElement) audioRef.current = null;
@@ -119,7 +121,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
 
     prefetchRef.current(gen);
 
-    audio.onended = () => {
+    const advance = () => {
       URL.revokeObjectURL(url);
       if (gen !== generationRef.current || !isPlayingRef.current) return;
 
@@ -155,7 +157,23 @@ export default function ListenClient({ questions, categories }: ListenClientProp
       }, pauseMs);
     };
 
-    audio.play().catch(() => {});
+    audio.onended = advance;
+
+    // Set the interruption handler only after play() resolves — setting it
+    // before causes it to fire during the loading/buffering phase on iOS,
+    // which creates an infinite restart loop.
+    audio.play()
+      .then(() => {
+        audio.onpause = () => {
+          // audio.ended fires pause too — ignore natural end, only react to interruptions
+          if (gen !== generationRef.current || !isPlayingRef.current || audio.ended) return;
+          timerRef.current = setTimeout(() => {
+            if (!isPlayingRef.current || gen !== generationRef.current || audio.ended) return;
+            audio.play().catch(() => speakRef.current());
+          }, 500);
+        };
+      })
+      .catch(() => {});
   }, []);
 
   // Pre-fetch the next segment while the current one plays
@@ -181,7 +199,10 @@ export default function ListenClient({ questions, categories }: ListenClientProp
       body: JSON.stringify({ text: nextText }),
       signal: controller.signal,
     })
-      .then((r) => r.blob())
+      .then((r) => {
+        if (!r.ok) throw new Error('tts-error');
+        return r.blob();
+      })
       .then((blob) => {
         if (controller.signal.aborted) return;
         const url = URL.createObjectURL(blob);
@@ -193,7 +214,14 @@ export default function ListenClient({ questions, categories }: ListenClientProp
           pendingAudioRef.current = { gen: nextGen, url };
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        // If playback is already waiting on this prefetch, recover by re-fetching on-demand
+        if (awaitingGenRef.current === nextGen && isPlayingRef.current) {
+          awaitingGenRef.current = null;
+          speakRef.current();
+        }
+      });
   }, []);
 
   // Kick off generation for the current position
@@ -221,18 +249,120 @@ export default function ListenClient({ questions, categories }: ListenClientProp
       body: JSON.stringify({ text }),
       signal: controller.signal,
     })
-      .then((r) => r.blob())
+      .then((r) => {
+        if (!r.ok) throw new Error('tts-error');
+        return r.blob();
+      })
       .then((blob) => {
         if (controller.signal.aborted || gen !== generationRef.current) return;
         playUrlRef.current(gen, URL.createObjectURL(blob));
       })
-      .catch(() => setGenerating(false));
+      .catch(() => {
+        if (controller.signal.aborted || gen !== generationRef.current) return;
+        // Retry once after a short delay so transient network failures self-heal
+        setGenerating(true);
+        timerRef.current = setTimeout(() => {
+          if (isPlayingRef.current && gen === generationRef.current) speakRef.current();
+        }, 1500);
+      });
   }, [cancelSpeech]);
 
   useEffect(() => { speakRef.current = speak; }, [speak]);
   useEffect(() => { prefetchRef.current = prefetch; }, [prefetch]);
   useEffect(() => { playUrlRef.current = playUrl; }, [playUrl]);
-  useEffect(() => () => cancelSpeech(true), [cancelSpeech]);
+  useEffect(() => () => { cancelSpeech(true); wakeLockRef.current?.release().catch(() => {}); wakeLockRef.current = null; }, [cancelSpeech]);
+
+  const requestWakeLock = useCallback(async () => {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request('screen');
+    } catch {
+      // Wake lock unavailable (low battery, permission denied) — not critical
+    }
+  }, []);
+
+  const releaseWakeLock = useCallback(() => {
+    wakeLockRef.current?.release().catch(() => {});
+    wakeLockRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!isPlayingRef.current) return;
+      requestWakeLock();
+      if (audioRef.current?.paused) speakRef.current();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [requestWakeLock]);
+
+  // Media Session: lock screen / Control Center controls
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+
+    navigator.mediaSession.setActionHandler('pause', () => {
+      if (!isPlayingRef.current) return;
+      cancelSpeech();
+      generationRef.current++;
+      isPlayingRef.current = false;
+      setIsPlaying(false);
+      setGenerating(false);
+      navigator.mediaSession.playbackState = 'paused';
+    });
+
+    navigator.mediaSession.setActionHandler('play', () => {
+      if (isPlayingRef.current) return;
+      isPlayingRef.current = true;
+      setIsPlaying(true);
+      navigator.mediaSession.playbackState = 'playing';
+      speakRef.current();
+    });
+
+    navigator.mediaSession.setActionHandler('nexttrack', () => {
+      cancelSpeech();
+      generationRef.current++;
+      setGenerating(false);
+      const next = currentIndexRef.current + 1 < sessionQRef.current.length
+        ? currentIndexRef.current + 1 : 0;
+      currentIndexRef.current = next;
+      phaseRef.current = 'question';
+      setCurrentIndex(next);
+      setPhase('question');
+      if (isPlayingRef.current) speakRef.current();
+    });
+
+    navigator.mediaSession.setActionHandler('previoustrack', () => {
+      cancelSpeech();
+      generationRef.current++;
+      setGenerating(false);
+      const prev = Math.max(0, currentIndexRef.current - 1);
+      currentIndexRef.current = prev;
+      phaseRef.current = 'question';
+      setCurrentIndex(prev);
+      setPhase('question');
+      if (isPlayingRef.current) speakRef.current();
+    });
+
+    return () => {
+      (['pause', 'play', 'nexttrack', 'previoustrack'] as MediaSessionAction[]).forEach(
+        (action) => navigator.mediaSession.setActionHandler(action, null),
+      );
+    };
+  }, [cancelSpeech]);
+
+  // Update lock screen Now Playing metadata whenever the question changes
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !sessionActive || !sessionQuestions.length) return;
+    const card = sessionQuestions[currentIndex];
+    const title = card.question.length > 80 ? card.question.slice(0, 80) + '…' : card.question;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title,
+      artist: `${card.category} · ${card.difficulty}`,
+      album: 'Interview Prep – Listen Mode',
+    });
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+  }, [sessionActive, sessionQuestions, currentIndex, isPlaying]);
 
   const startSession = () => {
     cancelSpeech(true);
@@ -253,6 +383,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
     setIsPlaying(true);
     setSessionActive(true);
 
+    requestWakeLock();
     setTimeout(() => speakRef.current(), 50);
   };
 
@@ -311,6 +442,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
     setIsPlaying(false);
     setGenerating(false);
     setSessionActive(false);
+    releaseWakeLock();
   };
 
   // Speed change doesn't require re-fetching — update playbackRate in place

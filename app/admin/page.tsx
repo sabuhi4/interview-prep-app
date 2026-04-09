@@ -64,6 +64,7 @@ export default function AdminPage() {
   });
 
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [questionsLoaded, setQuestionsLoaded] = useState(false);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [manageSearch, setManageSearch] = useState('');
   const [manageCategory, setManageCategory] = useState('All');
@@ -79,16 +80,26 @@ export default function AdminPage() {
 
   const loadQuestions = useCallback(async () => {
     setQuestionsLoading(true);
-    const result = await fetchAllQuestionsForAdminAction();
-    setAllQuestions(result.data as Question[]);
-    setQuestionsLoading(false);
+    try {
+      const result = await fetchAllQuestionsForAdminAction();
+      if (!result.success) {
+        setMessage({ type: 'error', text: `Failed to load questions: ${result.error}` });
+      }
+      setAllQuestions(result.data as Question[]);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      setMessage({ type: 'error', text: `Failed to load questions: ${msg}` });
+    } finally {
+      setQuestionsLoading(false);
+      setQuestionsLoaded(true);
+    }
   }, []);
 
   useEffect(() => {
-    if (mainView === 'manage' && allQuestions.length === 0) {
+    if (mainView === 'manage' && !questionsLoaded) {
       loadQuestions();
     }
-  }, [mainView, allQuestions.length, loadQuestions]);
+  }, [mainView, questionsLoaded, loadQuestions]);
 
   const manageCategories = ['All', ...Array.from(new Set(allQuestions.map((q) => q.category))).sort()];
 
