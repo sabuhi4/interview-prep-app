@@ -79,7 +79,7 @@ export default function QuestionsClient({ questions, categories, isAdmin }: Ques
                 <label className="text-sm font-medium mb-2 block">Category</label>
                 <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
                   <TabsList className="w-full justify-start flex-wrap h-auto">
-                    {categories.map((cat) => <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>)}
+                    {categories.map((cat) => <TabsTrigger key={cat} value={cat} className="flex-none">{cat}</TabsTrigger>)}
                   </TabsList>
                 </Tabs>
               </div>
@@ -87,8 +87,8 @@ export default function QuestionsClient({ questions, categories, isAdmin }: Ques
               <div>
                 <label className="text-sm font-medium mb-2 block">Difficulty</label>
                 <Tabs value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-                  <TabsList className="w-full justify-start">
-                    {difficulties.map((diff) => <TabsTrigger key={diff} value={diff} className="capitalize">{diff}</TabsTrigger>)}
+                  <TabsList className="w-full justify-start flex-wrap h-auto">
+                    {difficulties.map((diff) => <TabsTrigger key={diff} value={diff} className="flex-none capitalize">{diff}</TabsTrigger>)}
                   </TabsList>
                 </Tabs>
               </div>

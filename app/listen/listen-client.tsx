@@ -13,7 +13,7 @@ import { getDifficultyLevels } from '@/lib/api/questions';
 import { useProgress } from '@/lib/hooks/useProgress';
 import {
   ArrowLeft, Play, Pause, SkipBack, SkipForward, RotateCcw,
-  Headphones, Bookmark, Shuffle, Loader2,
+  Headphones, Bookmark, Shuffle, Loader2, Volume2, VolumeX,
 } from 'lucide-react';
 
 interface ListenClientProps {
@@ -52,6 +52,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
   const [isPlaying, setIsPlaying] = useState(false);
   const [phase, setPhase] = useState<'question' | 'answer'>('question');
   const [generating, setGenerating] = useState(false);
+  const [muted, setMuted] = useState(false);
 
   const isPlayingRef = useRef(false);
   const currentIndexRef = useRef(0);
@@ -65,6 +66,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
   const prefetchAbortRef = useRef<AbortController | null>(null);
   const pendingAudioRef = useRef<PendingAudio | null>(null);
   const awaitingGenRef = useRef<number | null>(null);
+  const prefetchFailedGenRef = useRef<number | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
   const speakRef = useRef<() => void>(() => {});
@@ -149,6 +151,10 @@ export default function ListenClient({ questions, categories }: ListenClientProp
         if (pending?.gen === nextGen) {
           pendingAudioRef.current = null;
           playUrlRef.current(nextGen, pending.url);
+        } else if (prefetchFailedGenRef.current === nextGen) {
+          // Prefetch already failed — recover by fetching on-demand
+          prefetchFailedGenRef.current = null;
+          speakRef.current();
         } else {
           // Prefetch is still in-flight — show spinner; prefetch will call playUrl when done
           setGenerating(true);
@@ -216,6 +222,7 @@ export default function ListenClient({ questions, categories }: ListenClientProp
       })
       .catch(() => {
         if (controller.signal.aborted) return;
+        prefetchFailedGenRef.current = nextGen;
         // If playback is already waiting on this prefetch, recover by re-fetching on-demand
         if (awaitingGenRef.current === nextGen && isPlayingRef.current) {
           awaitingGenRef.current = null;
@@ -445,6 +452,12 @@ export default function ListenClient({ questions, categories }: ListenClientProp
     releaseWakeLock();
   };
 
+  const handleMuteToggle = () => {
+    const next = !muted;
+    setMuted(next);
+    if (audioRef.current) audioRef.current.muted = next;
+  };
+
   // Speed change doesn't require re-fetching — update playbackRate in place
   const handleSpeedChange = (newSpeed: number) => {
     speedRef.current = newSpeed;
@@ -542,10 +555,14 @@ export default function ListenClient({ questions, categories }: ListenClientProp
             </Button>
           </div>
 
-          <div className="flex justify-center">
+          <div className="flex justify-center gap-2">
             <Button variant="ghost" size="sm" onClick={handleRepeat} className="gap-2 text-slate-500 dark:text-slate-400">
               <RotateCcw className="w-4 h-4" />
               Repeat question
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleMuteToggle} className="gap-2 text-slate-500 dark:text-slate-400">
+              {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              {muted ? 'Unmute' : 'Mute'}
             </Button>
           </div>
 
@@ -579,15 +596,15 @@ export default function ListenClient({ questions, categories }: ListenClientProp
           </p>
         </div>
 
-        <div className="max-w-2xl space-y-6">
+        <div className="space-y-6">
           <Card>
             <CardContent className="pt-6 space-y-5">
               <div>
                 <label className="text-sm font-medium mb-2 block">Category</label>
                 <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <TabsList className="flex-wrap h-auto">
+                  <TabsList className="w-full justify-start flex-wrap h-auto">
                     {categories.map((cat) => (
-                      <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>
+                      <TabsTrigger key={cat} value={cat} className="flex-none">{cat}</TabsTrigger>
                     ))}
                   </TabsList>
                 </Tabs>
@@ -596,9 +613,9 @@ export default function ListenClient({ questions, categories }: ListenClientProp
               <div>
                 <label className="text-sm font-medium mb-2 block">Difficulty</label>
                 <Tabs value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-                  <TabsList className="w-full justify-start">
+                  <TabsList className="w-full justify-start flex-wrap h-auto">
                     {difficulties.map((diff) => (
-                      <TabsTrigger key={diff} value={diff} className="capitalize">{diff}</TabsTrigger>
+                      <TabsTrigger key={diff} value={diff} className="flex-none capitalize">{diff}</TabsTrigger>
                     ))}
                   </TabsList>
                 </Tabs>

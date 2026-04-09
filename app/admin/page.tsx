@@ -302,10 +302,10 @@ export default function AdminPage() {
             </CardHeader>
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 mb-6 h-auto sm:h-10">
-                  <TabsTrigger value="qa">Q&A Question</TabsTrigger>
-                  <TabsTrigger value="quiz">Quiz Question</TabsTrigger>
-                  <TabsTrigger value="behavioral" className="gap-1.5">
+                <TabsList className="w-full justify-start flex-wrap h-auto mb-6">
+                  <TabsTrigger value="qa" className="flex-none">Q&A Question</TabsTrigger>
+                  <TabsTrigger value="quiz" className="flex-none">Quiz Question</TabsTrigger>
+                  <TabsTrigger value="behavioral" className="flex-none gap-1.5">
                     <Lock className="w-3 h-3" />Behavioral
                   </TabsTrigger>
                 </TabsList>
@@ -319,10 +319,10 @@ export default function AdminPage() {
                     <div>
                       <label className="text-sm font-medium mb-2 block">Difficulty *</label>
                       <Tabs value={qaForm.difficulty} onValueChange={(v) => setQaForm({ ...qaForm, difficulty: v as 'easy' | 'medium' | 'hard' })}>
-                        <TabsList className="w-full">
-                          <TabsTrigger value="easy" className="flex-1">Easy</TabsTrigger>
-                          <TabsTrigger value="medium" className="flex-1">Medium</TabsTrigger>
-                          <TabsTrigger value="hard" className="flex-1">Hard</TabsTrigger>
+                        <TabsList className="w-full justify-start flex-wrap h-auto">
+                          <TabsTrigger value="easy" className="flex-none">Easy</TabsTrigger>
+                          <TabsTrigger value="medium" className="flex-none">Medium</TabsTrigger>
+                          <TabsTrigger value="hard" className="flex-none">Hard</TabsTrigger>
                         </TabsList>
                       </Tabs>
                     </div>
@@ -355,10 +355,10 @@ export default function AdminPage() {
                     <div>
                       <label className="text-sm font-medium mb-2 block">Difficulty *</label>
                       <Tabs value={quizForm.difficulty} onValueChange={(v) => setQuizForm({ ...quizForm, difficulty: v as 'easy' | 'medium' | 'hard' })}>
-                        <TabsList className="w-full">
-                          <TabsTrigger value="easy" className="flex-1">Easy</TabsTrigger>
-                          <TabsTrigger value="medium" className="flex-1">Medium</TabsTrigger>
-                          <TabsTrigger value="hard" className="flex-1">Hard</TabsTrigger>
+                        <TabsList className="w-full justify-start flex-wrap h-auto">
+                          <TabsTrigger value="easy" className="flex-none">Easy</TabsTrigger>
+                          <TabsTrigger value="medium" className="flex-none">Medium</TabsTrigger>
+                          <TabsTrigger value="hard" className="flex-none">Hard</TabsTrigger>
                         </TabsList>
                       </Tabs>
                     </div>
@@ -407,10 +407,10 @@ export default function AdminPage() {
                     <div>
                       <label className="text-sm font-medium mb-2 block">Difficulty *</label>
                       <Tabs value={behavioralForm.difficulty} onValueChange={(v) => setBehavioralForm({ ...behavioralForm, difficulty: v as 'easy' | 'medium' | 'hard' })}>
-                        <TabsList className="w-full">
-                          <TabsTrigger value="easy" className="flex-1">Easy</TabsTrigger>
-                          <TabsTrigger value="medium" className="flex-1">Medium</TabsTrigger>
-                          <TabsTrigger value="hard" className="flex-1">Hard</TabsTrigger>
+                        <TabsList className="w-full justify-start flex-wrap h-auto">
+                          <TabsTrigger value="easy" className="flex-none">Easy</TabsTrigger>
+                          <TabsTrigger value="medium" className="flex-none">Medium</TabsTrigger>
+                          <TabsTrigger value="hard" className="flex-none">Hard</TabsTrigger>
                         </TabsList>
                       </Tabs>
                     </div>
