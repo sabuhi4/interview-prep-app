@@ -3,18 +3,35 @@
 import { createClient } from '@supabase/supabase-js';
 import { Question, QuizQuestion } from '@/lib/types';
 import { generateQuestionId, validateQuestion, validateQuizQuestion } from '@/lib/api/admin';
+import { isAuthenticated } from '@/lib/auth';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase credentials');
+  if (!supabaseUrl) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
+  }
+
+  if (!supabaseServiceKey) {
+    throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
+  }
+
+  return createClient(supabaseUrl, supabaseServiceKey);
 }
 
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+async function requireAdminAuth() {
+  const authenticated = await isAuthenticated();
+
+  if (!authenticated) {
+    throw new Error('Unauthorized admin request');
+  }
+}
 
 export async function createQuestionAction(questionData: Omit<Question, 'id'>) {
   try {
+    await requireAdminAuth();
+    const supabaseAdmin = getSupabaseAdmin();
     const validation = validateQuestion(questionData);
     if (!validation.valid) {
       return { success: false, error: validation.errors.join(', ') };
@@ -41,6 +58,8 @@ export async function createQuestionAction(questionData: Omit<Question, 'id'>) {
 
 export async function createQuizQuestionAction(questionData: Omit<QuizQuestion, 'id'>) {
   try {
+    await requireAdminAuth();
+    const supabaseAdmin = getSupabaseAdmin();
     const validation = validateQuizQuestion(questionData);
     if (!validation.valid) {
       return { success: false, error: validation.errors.join(', ') };
@@ -83,6 +102,8 @@ export async function createBehavioralQuestionAction(questionData: {
   tags: string[];
 }) {
   try {
+    await requireAdminAuth();
+    const supabaseAdmin = getSupabaseAdmin();
     const validation = validateQuestion({ ...questionData, category: 'Behavioral' });
     if (!validation.valid) {
       return { success: false, error: validation.errors.join(', ') };
@@ -121,6 +142,8 @@ export async function updateQuestionAction(id: string, data: {
   admin_only?: boolean;
 }) {
   try {
+    await requireAdminAuth();
+    const supabaseAdmin = getSupabaseAdmin();
     const { error } = await supabaseAdmin
       .from('questions')
       .update(data)
@@ -136,6 +159,8 @@ export async function updateQuestionAction(id: string, data: {
 
 export async function fetchAllQuestionsForAdminAction() {
   try {
+    await requireAdminAuth();
+    const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from('questions')
       .select('*')
@@ -152,6 +177,8 @@ export async function fetchAllQuestionsForAdminAction() {
 
 export async function deleteQuestionAction(id: string) {
   try {
+    await requireAdminAuth();
+    const supabaseAdmin = getSupabaseAdmin();
     const { error } = await supabaseAdmin
       .from('questions')
       .delete()
@@ -170,6 +197,8 @@ export async function deleteQuestionAction(id: string) {
 
 export async function deleteQuizQuestionAction(id: string) {
   try {
+    await requireAdminAuth();
+    const supabaseAdmin = getSupabaseAdmin();
     const { error } = await supabaseAdmin
       .from('quiz_questions')
       .delete()
