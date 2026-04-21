@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navigation from "@/components/navigation";
+import { getUser } from "@/lib/user-auth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,11 +19,14 @@ export const metadata: Metadata = {
   description: "Master frontend development with comprehensive interview questions and interactive quizzes",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const user = await getUser();
+  const navUser = user?.email ? { email: user.email } : null;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -44,7 +48,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Navigation />
+        <Navigation user={navUser} />
         {children}
       </body>
     </html>

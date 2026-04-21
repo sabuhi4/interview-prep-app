@@ -1,28 +1,35 @@
 'use client';
 
-import { useMemo } from 'react';
-import { useLocalStorage } from './useLocalStorage';
-import { Question, StoredQuizResult } from '@/lib/types';
+import { useState, useMemo } from 'react';
+import { Question, InitialProgress } from '@/lib/types';
+import { upsertProgressAction } from '@/app/actions/progress';
 
-export function useProgress(questions: Question[]) {
-  const [bookmarkedIds, setBookmarkedIds] = useLocalStorage<string[]>('interview-prep:bookmarks', []);
-  const [doneIds, setDoneIds] = useLocalStorage<string[]>('interview-prep:done', []);
-  const [quizResults, setQuizResults] = useLocalStorage<StoredQuizResult[]>('interview-prep:quiz-results', []);
+export function useProgress(
+  questions: Question[],
+  initialProgress: InitialProgress = { bookmarkedIds: [], doneIds: [] },
+  isAuthenticated: boolean = false
+) {
+  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>(initialProgress.bookmarkedIds);
+  const [doneIds, setDoneIds] = useState<string[]>(initialProgress.doneIds);
 
   const toggleBookmark = (id: string) => {
-    setBookmarkedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    if (!isAuthenticated) return;
+    const newBookmarked = bookmarkedIds.includes(id)
+      ? bookmarkedIds.filter((x) => x !== id)
+      : [...bookmarkedIds, id];
+    const isDone = doneIds.includes(id);
+    setBookmarkedIds(newBookmarked);
+    upsertProgressAction(id, newBookmarked.includes(id), isDone);
   };
 
   const toggleDone = (id: string) => {
-    setDoneIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const saveQuizResult = (result: StoredQuizResult) => {
-    setQuizResults((prev) => [result, ...prev].slice(0, 50));
+    if (!isAuthenticated) return;
+    const newDone = doneIds.includes(id)
+      ? doneIds.filter((x) => x !== id)
+      : [...doneIds, id];
+    const isBookmarked = bookmarkedIds.includes(id);
+    setDoneIds(newDone);
+    upsertProgressAction(id, isBookmarked, newDone.includes(id));
   };
 
   const stats = useMemo(() => {
@@ -43,29 +50,24 @@ export function useProgress(questions: Question[]) {
 
     const topicsMastered = categories.filter((c) => c.done === c.total && c.total > 0).length;
     const inProgress = categories.filter((c) => c.done > 0 && c.done < c.total).length;
-    const avgScore =
-      quizResults.length > 0
-        ? Math.round(quizResults.reduce((sum, r) => sum + r.percentage, 0) / quizResults.length)
-        : 0;
 
     return {
       categories,
       topicsMastered,
       inProgress,
-      avgScore,
       totalQuestions: questions.length,
       completedQuestions: doneIds.length,
-      overallPercentage: questions.length > 0 ? Math.round((doneIds.length / questions.length) * 100) : 0,
+      overallPercentage:
+        questions.length > 0 ? Math.round((doneIds.length / questions.length) * 100) : 0,
     };
-  }, [questions, doneIds, quizResults]);
+  }, [questions, doneIds]);
 
   return {
     bookmarkedIds,
     doneIds,
-    quizResults,
     toggleBookmark,
     toggleDone,
-    saveQuizResult,
     stats,
+    isAuthenticated,
   };
 }

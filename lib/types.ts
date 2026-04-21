@@ -34,3 +34,8 @@ export interface StoredQuizResult {
   difficulty: string;
   completedAt: string;
 }
+
+export interface InitialProgress {
+  bookmarkedIds: string[];
+  doneIds: string[];
+}

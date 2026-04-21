@@ -9,26 +9,39 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Question } from '@/lib/types';
+import { Question, InitialProgress } from '@/lib/types';
 import { getDifficultyLevels } from '@/lib/api/questions';
 import { useProgress } from '@/lib/hooks/useProgress';
-import { ArrowLeft, Search, Bookmark, CheckCircle, ChevronDown, Lock } from 'lucide-react';
+import { ArrowLeft, Search, Bookmark, CheckCircle, ChevronDown, Lock, EyeOff } from 'lucide-react';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 
 interface QuestionsClientProps {
   questions: Question[];
   categories: string[];
   isAdmin: boolean;
+  initialProgress?: InitialProgress;
+  isAuthenticated?: boolean;
 }
 
-export default function QuestionsClient({ questions, categories, isAdmin }: QuestionsClientProps) {
+export default function QuestionsClient({
+  questions,
+  categories,
+  isAdmin,
+  initialProgress,
+  isAuthenticated = false,
+}: QuestionsClientProps) {
   const [difficulties] = useState<string[]>(getDifficultyLevels());
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [showBookmarked, setShowBookmarked] = useState(false);
+  const [showUndoneOnly, setShowUndoneOnly] = useState(false);
 
-  const { bookmarkedIds, doneIds, toggleBookmark, toggleDone } = useProgress(questions);
+  const { bookmarkedIds, doneIds, toggleBookmark, toggleDone } = useProgress(
+    questions,
+    initialProgress,
+    isAuthenticated
+  );
 
   const filteredQuestions = questions.filter((q) => {
     const matchesSearch =
@@ -38,7 +51,8 @@ export default function QuestionsClient({ questions, categories, isAdmin }: Ques
     const matchesCategory = selectedCategory === 'All' || q.category === selectedCategory;
     const matchesDifficulty = selectedDifficulty === 'All' || q.difficulty === selectedDifficulty;
     const matchesBookmark = !showBookmarked || bookmarkedIds.includes(q.id);
-    return matchesSearch && matchesCategory && matchesDifficulty && matchesBookmark;
+    const matchesUndone = !showUndoneOnly || !doneIds.includes(q.id);
+    return matchesSearch && matchesCategory && matchesDifficulty && matchesBookmark && matchesUndone;
   });
 
   const getDifficultyColor = (difficulty: string) => {
@@ -93,19 +107,37 @@ export default function QuestionsClient({ questions, categories, isAdmin }: Ques
                 </Tabs>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant={showBookmarked ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setShowBookmarked(!showBookmarked)}
                   className="gap-2"
+                  disabled={!isAuthenticated}
                 >
                   <Bookmark className={`w-4 h-4 ${showBookmarked ? 'fill-current' : ''}`} />
                   Bookmarked ({bookmarkedIds.length})
                 </Button>
-                <span className="text-sm text-slate-500 dark:text-slate-400">
-                  {doneIds.length} of {questions.length} done
-                </span>
+                <Button
+                  variant={showUndoneOnly ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setShowUndoneOnly(!showUndoneOnly)}
+                  className="gap-2"
+                  disabled={!isAuthenticated}
+                >
+                  <EyeOff className="w-4 h-4" />
+                  Hide done ({doneIds.length})
+                </Button>
+                {!isAuthenticated && (
+                  <span className="text-xs text-slate-400 dark:text-slate-500 italic">
+                    Login to track progress
+                  </span>
+                )}
+                {isAuthenticated && (
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    {doneIds.length} of {questions.length} done
+                  </span>
+                )}
               </div>
             </div>
           </CardContent>

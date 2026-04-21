@@ -10,9 +10,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { QuizQuestion, StoredQuizResult } from '@/lib/types';
+import { QuizQuestion } from '@/lib/types';
 import { fetchQuizQuestionsByFilters, getDifficultyLevels } from '@/lib/api/questions';
-import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
+import { saveQuizResultAction } from '@/app/actions/progress';
 import { ArrowLeft, CheckCircle2, XCircle, RotateCcw, Trophy, Loader2, Timer } from 'lucide-react';
 
 const QUESTION_COUNT_OPTIONS = ['5', '10', '20', 'All'] as const;
@@ -46,7 +46,6 @@ export default function QuizClient({ initialCategories }: QuizClientProps) {
   const [activeQuestions, setActiveQuestions] = useState<QuizQuestion[]>([]);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [, saveQuizResults] = useLocalStorage<StoredQuizResult[]>('interview-prep:quiz-results', []);
 
   useEffect(() => {
     async function loadQuestions() {
@@ -166,16 +165,7 @@ export default function QuizClient({ initialCategories }: QuizClientProps) {
 
   useEffect(() => {
     if (!quizCompleted || totalQuestions === 0) return;
-    const result: StoredQuizResult = {
-      id: crypto.randomUUID(),
-      score,
-      totalQuestions,
-      percentage,
-      category: selectedCategory,
-      difficulty: selectedDifficulty,
-      completedAt: new Date().toISOString(),
-    };
-    saveQuizResults((prev) => [result, ...prev].slice(0, 50));
+    saveQuizResultAction({ score, totalQuestions, percentage, category: selectedCategory, difficulty: selectedDifficulty });
   }, [quizCompleted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) {

@@ -5,7 +5,8 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Code2, Settings, Menu, X } from 'lucide-react';
+import { Code2, Settings, Menu, X, LogIn, LogOut, User } from 'lucide-react';
+import { signOutAction } from '@/lib/user-auth';
 
 const ThemeToggle = dynamic(() => import('@/components/theme-toggle'), { ssr: false });
 
@@ -17,7 +18,11 @@ const navLinks = [
   { href: '/progress', label: 'Progress' },
 ];
 
-export default function Navigation() {
+interface NavigationProps {
+  user: { email: string } | null;
+}
+
+export default function Navigation({ user }: NavigationProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -51,6 +56,26 @@ export default function Navigation() {
               );
             })}
             <ThemeToggle />
+            {user ? (
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 px-2">
+                  <User className="w-3 h-3" />
+                  {user.email}
+                </span>
+                <form action={signOutAction}>
+                  <Button variant="ghost" size="icon" title="Sign out">
+                    <LogOut className="w-4 h-4" />
+                  </Button>
+                </form>
+              </div>
+            ) : (
+              <Link href="/auth/login">
+                <Button variant="ghost" size="sm" className="gap-1">
+                  <LogIn className="w-4 h-4" />
+                  Login
+                </Button>
+              </Link>
+            )}
             <Link href="/admin">
               <Button variant="ghost" size="icon" title="Admin Panel">
                 <Settings className="w-4 h-4" />
@@ -89,6 +114,27 @@ export default function Navigation() {
               </Link>
             );
           })}
+          {user ? (
+            <>
+              <p className="text-xs text-slate-500 dark:text-slate-400 px-3 py-1 flex items-center gap-1">
+                <User className="w-3 h-3" />
+                {user.email}
+              </p>
+              <form action={signOutAction} onClick={() => setMenuOpen(false)}>
+                <Button variant="ghost" className="w-full justify-start gap-2">
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </Button>
+              </form>
+            </>
+          ) : (
+            <Link href="/auth/login" onClick={() => setMenuOpen(false)}>
+              <Button variant="ghost" className="w-full justify-start gap-2">
+                <LogIn className="w-4 h-4" />
+                Login
+              </Button>
+            </Link>
+          )}
           <Link href="/admin" onClick={() => setMenuOpen(false)}>
             <Button variant="ghost" className="w-full justify-start gap-2">
               <Settings className="w-4 h-4" />
