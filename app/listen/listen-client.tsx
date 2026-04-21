@@ -8,17 +8,19 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Question } from '@/lib/types';
+import { Question, InitialProgress } from '@/lib/types';
 import { getDifficultyLevels } from '@/lib/api/questions';
 import { useProgress } from '@/lib/hooks/useProgress';
 import {
   ArrowLeft, Play, Pause, SkipBack, SkipForward, RotateCcw,
-  Headphones, Bookmark, Shuffle, Loader2, Volume2, VolumeX,
+  Headphones, Bookmark, Shuffle, Loader2, Volume2, VolumeX, CheckCheck,
 } from 'lucide-react';
 
 interface ListenClientProps {
   questions: Question[];
   categories: string[];
+  initialProgress?: InitialProgress;
+  isAuthenticated?: boolean;
 }
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -36,13 +38,14 @@ const PAUSE_AFTER_ANSWER = 2500;
 
 type PendingAudio = { gen: number; url: string };
 
-export default function ListenClient({ questions, categories }: ListenClientProps) {
+export default function ListenClient({ questions, categories, initialProgress, isAuthenticated = false }: ListenClientProps) {
   const difficulties = getDifficultyLevels();
-  const { bookmarkedIds } = useProgress(questions);
+  const { bookmarkedIds, doneIds } = useProgress(questions, initialProgress, isAuthenticated);
 
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [onlyBookmarked, setOnlyBookmarked] = useState(false);
+  const [excludeDone, setExcludeDone] = useState(false);
   const [shouldShuffle, setShouldShuffle] = useState(true);
   const [speed, setSpeed] = useState(1);
 
@@ -77,7 +80,8 @@ export default function ListenClient({ questions, categories }: ListenClientProp
     const matchesCategory = selectedCategory === 'All' || q.category === selectedCategory;
     const matchesDifficulty = selectedDifficulty === 'All' || q.difficulty === selectedDifficulty;
     const matchesBookmark = !onlyBookmarked || bookmarkedIds.includes(q.id);
-    return matchesCategory && matchesDifficulty && matchesBookmark;
+    const matchesNotDone = !excludeDone || !doneIds.includes(q.id);
+    return matchesCategory && matchesDifficulty && matchesBookmark && matchesNotDone;
   });
 
   const clearTimer = useCallback(() => {
@@ -628,6 +632,13 @@ export default function ListenClient({ questions, categories }: ListenClientProp
                 >
                   <Bookmark className={`w-4 h-4 ${onlyBookmarked ? 'fill-current' : ''}`} />
                   Bookmarked only
+                </Button>
+                <Button
+                  variant={excludeDone ? 'default' : 'outline'} size="sm"
+                  onClick={() => setExcludeDone(!excludeDone)} className="gap-2"
+                >
+                  <CheckCheck className="w-4 h-4" />
+                  Exclude done
                 </Button>
                 <Button
                   variant={shouldShuffle ? 'default' : 'outline'} size="sm"
