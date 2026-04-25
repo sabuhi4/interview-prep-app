@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Question, InitialProgress } from '@/lib/types';
+import { Question, QuestionTrack, InitialProgress } from '@/lib/types';
 import { getDifficultyLevels } from '@/lib/api/questions';
 import { useProgress } from '@/lib/hooks/useProgress';
 import {
@@ -16,9 +16,13 @@ import {
   Headphones, Bookmark, Shuffle, Loader2, Volume2, VolumeX, CheckCheck,
 } from 'lucide-react';
 
+const TRACK_LABELS: Record<QuestionTrack, string> = {
+  'frontend': 'Frontend Engineer',
+  'business-analyst': 'Business Analyst',
+};
+
 interface ListenClientProps {
   questions: Question[];
-  categories: string[];
   initialProgress?: InitialProgress;
   isAuthenticated?: boolean;
 }
@@ -38,10 +42,11 @@ const PAUSE_AFTER_ANSWER = 2500;
 
 type PendingAudio = { gen: number; url: string };
 
-export default function ListenClient({ questions, categories, initialProgress, isAuthenticated = false }: ListenClientProps) {
+export default function ListenClient({ questions, initialProgress, isAuthenticated = false }: ListenClientProps) {
   const difficulties = getDifficultyLevels();
   const { bookmarkedIds, doneIds } = useProgress(questions, initialProgress, isAuthenticated);
 
+  const [selectedTrack, setSelectedTrack] = useState<QuestionTrack>('frontend');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [onlyBookmarked, setOnlyBookmarked] = useState(false);
@@ -76,12 +81,22 @@ export default function ListenClient({ questions, categories, initialProgress, i
   const prefetchRef = useRef<(gen: number) => void>(() => {});
   const playUrlRef = useRef<(gen: number, url: string) => void>(() => {});
 
+  const trackCategories = ['All', ...Array.from(
+    new Set(questions.filter(q => q.track === selectedTrack).map(q => q.category))
+  ).sort()];
+
+  const handleTrackChange = (track: string) => {
+    setSelectedTrack(track as QuestionTrack);
+    setSelectedCategory('All');
+  };
+
   const filteredQuestions = questions.filter((q) => {
+    const matchesTrack = q.track === selectedTrack;
     const matchesCategory = selectedCategory === 'All' || q.category === selectedCategory;
     const matchesDifficulty = selectedDifficulty === 'All' || q.difficulty === selectedDifficulty;
     const matchesBookmark = !onlyBookmarked || bookmarkedIds.includes(q.id);
     const matchesNotDone = !excludeDone || !doneIds.includes(q.id);
-    return matchesCategory && matchesDifficulty && matchesBookmark && matchesNotDone;
+    return matchesTrack && matchesCategory && matchesDifficulty && matchesBookmark && matchesNotDone;
   });
 
   const clearTimer = useCallback(() => {
@@ -604,10 +619,21 @@ export default function ListenClient({ questions, categories, initialProgress, i
           <Card>
             <CardContent className="pt-6 space-y-5">
               <div>
+                <label className="text-sm font-medium mb-2 block">Track</label>
+                <Tabs value={selectedTrack} onValueChange={handleTrackChange}>
+                  <TabsList className="w-full justify-start flex-wrap h-auto">
+                    {(Object.keys(TRACK_LABELS) as QuestionTrack[]).map((t) => (
+                      <TabsTrigger key={t} value={t} className="flex-none">{TRACK_LABELS[t]}</TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              <div>
                 <label className="text-sm font-medium mb-2 block">Category</label>
                 <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
                   <TabsList className="w-full justify-start flex-wrap h-auto">
-                    {categories.map((cat) => (
+                    {trackCategories.map((cat) => (
                       <TabsTrigger key={cat} value={cat} className="flex-none">{cat}</TabsTrigger>
                     ))}
                   </TabsList>

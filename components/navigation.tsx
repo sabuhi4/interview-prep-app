@@ -8,7 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Code2, Settings, Menu, X, LogIn, LogOut, User } from 'lucide-react';
 import { signOutAction } from '@/lib/user-auth';
 
-const ThemeToggle = dynamic(() => import('@/components/theme-toggle'), { ssr: false });
+const ThemeToggle = dynamic(() => import('@/components/theme-toggle'), {
+  ssr: false,
+  loading: () => <div className="size-9 shrink-0" />,
+});
 
 const navLinks = [
   { href: '/questions', label: 'Questions' },
@@ -35,7 +38,7 @@ export default function Navigation({ user }: NavigationProps) {
               <Code2 className="w-5 h-5 text-white" />
             </div>
             <span className="font-bold text-base md:text-lg bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Frontend Prep
+              Interview Prep
             </span>
           </Link>
 
@@ -44,15 +47,15 @@ export default function Navigation({ user }: NavigationProps) {
             {navLinks.map(({ href, label }) => {
               const isActive = pathname.startsWith(href);
               return (
-                <Link key={href} href={href}>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={isActive ? 'bg-accent text-accent-foreground font-semibold' : ''}
-                  >
-                    {label}
-                  </Button>
-                </Link>
+                <Button
+                  key={href}
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className={isActive ? 'bg-accent text-accent-foreground font-semibold' : ''}
+                >
+                  <Link href={href}>{label}</Link>
+                </Button>
               );
             })}
             <ThemeToggle />
@@ -69,18 +72,18 @@ export default function Navigation({ user }: NavigationProps) {
                 </form>
               </div>
             ) : (
-              <Link href="/auth/login">
-                <Button variant="ghost" size="sm" className="gap-1">
+              <Button asChild variant="ghost" size="sm" className="gap-1">
+                <Link href="/auth/login">
                   <LogIn className="w-4 h-4" />
                   Login
-                </Button>
-              </Link>
-            )}
-            <Link href="/admin">
-              <Button variant="ghost" size="icon" title="Admin Panel">
-                <Settings className="w-4 h-4" />
+                </Link>
               </Button>
-            </Link>
+            )}
+            <Button asChild variant="ghost" size="icon" title="Admin Panel">
+              <Link href="/admin">
+                <Settings className="w-4 h-4" />
+              </Link>
+            </Button>
           </div>
 
           {/* Mobile controls */}
@@ -104,14 +107,14 @@ export default function Navigation({ user }: NavigationProps) {
           {navLinks.map(({ href, label }) => {
             const isActive = pathname.startsWith(href);
             return (
-              <Link key={href} href={href} onClick={() => setMenuOpen(false)}>
-                <Button
-                  variant="ghost"
-                  className={`w-full justify-start ${isActive ? 'bg-accent text-accent-foreground font-semibold' : ''}`}
-                >
-                  {label}
-                </Button>
-              </Link>
+              <Button
+                key={href}
+                asChild
+                variant="ghost"
+                className={`w-full justify-start ${isActive ? 'bg-accent text-accent-foreground font-semibold' : ''}`}
+              >
+                <Link href={href} onClick={() => setMenuOpen(false)}>{label}</Link>
+              </Button>
             );
           })}
           {user ? (
@@ -128,19 +131,19 @@ export default function Navigation({ user }: NavigationProps) {
               </form>
             </>
           ) : (
-            <Link href="/auth/login" onClick={() => setMenuOpen(false)}>
-              <Button variant="ghost" className="w-full justify-start gap-2">
+            <Button asChild variant="ghost" className="w-full justify-start gap-2">
+              <Link href="/auth/login" onClick={() => setMenuOpen(false)}>
                 <LogIn className="w-4 h-4" />
                 Login
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           )}
-          <Link href="/admin" onClick={() => setMenuOpen(false)}>
-            <Button variant="ghost" className="w-full justify-start gap-2">
+          <Button asChild variant="ghost" className="w-full justify-start gap-2">
+            <Link href="/admin" onClick={() => setMenuOpen(false)}>
               <Settings className="w-4 h-4" />
               Admin Panel
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       )}
     </nav>

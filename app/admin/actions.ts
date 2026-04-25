@@ -116,6 +116,7 @@ export async function createBehavioralQuestionAction(questionData: {
       .insert([{
         id,
         category: 'Behavioral',
+        track: 'frontend',
         admin_only: true,
         ...questionData,
       }])
@@ -134,6 +135,7 @@ export async function createBehavioralQuestionAction(questionData: {
 }
 
 export async function updateQuestionAction(id: string, data: {
+  track?: 'frontend' | 'business-analyst';
   category?: string;
   difficulty?: 'easy' | 'medium' | 'hard';
   question?: string;

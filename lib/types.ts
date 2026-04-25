@@ -1,5 +1,8 @@
+export type QuestionTrack = 'frontend' | 'business-analyst';
+
 export interface Question {
   id: string;
+  track: QuestionTrack;
   category: string;
   difficulty: 'easy' | 'medium' | 'hard';
   question: string;

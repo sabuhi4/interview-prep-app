@@ -36,6 +36,7 @@ export default function AdminPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [qaForm, setQaForm] = useState({
+    track: 'frontend' as 'frontend' | 'business-analyst',
     category: '',
     difficulty: 'medium' as 'easy' | 'medium' | 'hard',
     question: '',
@@ -67,9 +68,11 @@ export default function AdminPage() {
   const [questionsLoaded, setQuestionsLoaded] = useState(false);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [manageSearch, setManageSearch] = useState('');
+  const [manageTrack, setManageTrack] = useState<'All' | 'frontend' | 'business-analyst'>('All');
   const [manageCategory, setManageCategory] = useState('All');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
+    track: 'frontend' as 'frontend' | 'business-analyst',
     category: '',
     difficulty: 'medium' as 'easy' | 'medium' | 'hard',
     question: '',
@@ -101,9 +104,10 @@ export default function AdminPage() {
     }
   }, [mainView, questionsLoaded, loadQuestions]);
 
-  const manageCategories = ['All', ...Array.from(new Set(allQuestions.map((q) => q.category))).sort()];
+  const trackFilteredQuestions = manageTrack === 'All' ? allQuestions : allQuestions.filter(q => q.track === manageTrack);
+  const manageCategories = ['All', ...Array.from(new Set(trackFilteredQuestions.map((q) => q.category))).sort()];
 
-  const filteredManageQuestions = allQuestions.filter((q) => {
+  const filteredManageQuestions = trackFilteredQuestions.filter((q) => {
     const matchesSearch =
       q.question.toLowerCase().includes(manageSearch.toLowerCase()) ||
       q.answer.toLowerCase().includes(manageSearch.toLowerCase());
@@ -114,6 +118,7 @@ export default function AdminPage() {
   const startEdit = (q: Question) => {
     setEditingId(q.id);
     setEditForm({
+      track: q.track,
       category: q.category,
       difficulty: q.difficulty,
       question: q.question,
@@ -129,6 +134,7 @@ export default function AdminPage() {
     setMessage(null);
 
     const updated = {
+      track: editForm.track,
       category: editForm.category.trim(),
       difficulty: editForm.difficulty,
       question: editForm.question.trim(),
@@ -152,7 +158,7 @@ export default function AdminPage() {
   };
 
   const resetBehavioralForm = () => setBehavioralForm({ difficulty: 'medium', question: '', answer: '', tags: '' });
-  const resetQaForm = () => setQaForm({ category: '', difficulty: 'medium', question: '', answer: '', tags: '' });
+  const resetQaForm = () => setQaForm({ track: 'frontend', category: '', difficulty: 'medium', question: '', answer: '', tags: '' });
   const resetQuizForm = () => setQuizForm({ category: '', difficulty: 'medium', question: '', option1: '', option2: '', option3: '', option4: '', correctAnswer: 0, explanation: '', tags: '' });
 
   const handleBehavioralSubmit = async (e: React.FormEvent) => {
@@ -186,6 +192,7 @@ export default function AdminPage() {
     setMessage(null);
     try {
       const questionData: Omit<Question, 'id'> = {
+        track: qaForm.track,
         category: qaForm.category.trim(),
         difficulty: qaForm.difficulty,
         question: qaForm.question.trim(),
@@ -312,8 +319,22 @@ export default function AdminPage() {
                 <TabsContent value="qa">
                   <form onSubmit={handleQaSubmit} className="space-y-4">
                     <div>
+                      <label className="text-sm font-medium mb-2 block">Track *</label>
+                      <Tabs value={qaForm.track} onValueChange={(v) => setQaForm({ ...qaForm, track: v as 'frontend' | 'business-analyst' })}>
+                        <TabsList className="w-full justify-start flex-wrap h-auto">
+                          <TabsTrigger value="frontend" className="flex-none">Frontend Engineer</TabsTrigger>
+                          <TabsTrigger value="business-analyst" className="flex-none">Business Analyst</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                    </div>
+                    <div>
                       <label className="text-sm font-medium mb-2 block">Category *</label>
-                      <Input placeholder="e.g., React, JavaScript, TypeScript" value={qaForm.category} onChange={(e) => setQaForm({ ...qaForm, category: e.target.value })} required />
+                      <Input
+                        placeholder={qaForm.track === 'frontend' ? 'e.g., React, JavaScript, TypeScript' : 'e.g., Business Analysis, Requirements'}
+                        value={qaForm.category}
+                        onChange={(e) => setQaForm({ ...qaForm, category: e.target.value })}
+                        required
+                      />
                     </div>
                     <div>
                       <label className="text-sm font-medium mb-2 block">Difficulty *</label>
@@ -463,6 +484,18 @@ export default function AdminPage() {
                       />
                     </div>
                     <select
+                      value={manageTrack}
+                      onChange={(e) => {
+                        setManageTrack(e.target.value as 'All' | 'frontend' | 'business-analyst');
+                        setManageCategory('All');
+                      }}
+                      className="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="All">All Tracks</option>
+                      <option value="frontend">Frontend</option>
+                      <option value="business-analyst">Business Analyst</option>
+                    </select>
+                    <select
                       value={manageCategory}
                       onChange={(e) => setManageCategory(e.target.value)}
                       className="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -506,7 +539,18 @@ export default function AdminPage() {
 
                         {editingId === q.id && (
                           <div className="pb-4 pl-9 space-y-3">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div>
+                                <label className="text-xs font-medium mb-1 block text-slate-500">Track</label>
+                                <select
+                                  value={editForm.track}
+                                  onChange={(e) => setEditForm({ ...editForm, track: e.target.value as 'frontend' | 'business-analyst' })}
+                                  className="w-full h-8 px-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                  <option value="frontend">Frontend</option>
+                                  <option value="business-analyst">Business Analyst</option>
+                                </select>
+                              </div>
                               <div>
                                 <label className="text-xs font-medium mb-1 block text-slate-500">Category</label>
                                 <Input

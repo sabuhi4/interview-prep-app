@@ -53,10 +53,10 @@ export default function Home() {
             </div>
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Frontend Interview Prep
+            Interview Prep
           </h1>
           <p className="text-base sm:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-            Master frontend development with curated interview questions, detailed answers, and interactive quizzes
+            Curated interview questions, detailed answers, and interactive quizzes for frontend engineers and business analysts
           </p>
         </div>
 
@@ -69,7 +69,7 @@ export default function Home() {
               </div>
               <CardTitle className="text-2xl">Questions & Answers</CardTitle>
               <CardDescription className="text-base">
-                Browse through comprehensive interview questions with detailed explanations covering React, Next.js, JavaScript, TypeScript, CSS, and HTML
+                Browse curated interview questions with detailed explanations across frontend engineering and business analyst tracks
               </CardDescription>
             </CardHeader>
             <CardContent>

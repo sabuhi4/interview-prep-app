@@ -9,15 +9,19 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Question, InitialProgress } from '@/lib/types';
+import { Question, QuestionTrack, InitialProgress } from '@/lib/types';
 import { getDifficultyLevels } from '@/lib/api/questions';
 import { useProgress } from '@/lib/hooks/useProgress';
 import { ArrowLeft, Search, Bookmark, CheckCircle, ChevronDown, Lock, EyeOff } from 'lucide-react';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 
+const TRACK_LABELS: Record<QuestionTrack, string> = {
+  'frontend': 'Frontend Engineer',
+  'business-analyst': 'Business Analyst',
+};
+
 interface QuestionsClientProps {
   questions: Question[];
-  categories: string[];
   isAdmin: boolean;
   initialProgress?: InitialProgress;
   isAuthenticated?: boolean;
@@ -25,13 +29,13 @@ interface QuestionsClientProps {
 
 export default function QuestionsClient({
   questions,
-  categories,
   isAdmin,
   initialProgress,
   isAuthenticated = false,
 }: QuestionsClientProps) {
   const [difficulties] = useState<string[]>(getDifficultyLevels());
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTrack, setSelectedTrack] = useState<QuestionTrack>('frontend');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [showBookmarked, setShowBookmarked] = useState(false);
@@ -43,7 +47,17 @@ export default function QuestionsClient({
     isAuthenticated
   );
 
+  const trackCategories = ['All', ...Array.from(
+    new Set(questions.filter(q => q.track === selectedTrack).map(q => q.category))
+  ).sort()];
+
+  const handleTrackChange = (track: string) => {
+    setSelectedTrack(track as QuestionTrack);
+    setSelectedCategory('All');
+  };
+
   const filteredQuestions = questions.filter((q) => {
+    const matchesTrack = q.track === selectedTrack;
     const matchesSearch =
       q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
       q.answer.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -52,7 +66,7 @@ export default function QuestionsClient({
     const matchesDifficulty = selectedDifficulty === 'All' || q.difficulty === selectedDifficulty;
     const matchesBookmark = !showBookmarked || bookmarkedIds.includes(q.id);
     const matchesUndone = !showUndoneOnly || !doneIds.includes(q.id);
-    return matchesSearch && matchesCategory && matchesDifficulty && matchesBookmark && matchesUndone;
+    return matchesTrack && matchesSearch && matchesCategory && matchesDifficulty && matchesBookmark && matchesUndone;
   });
 
   const getDifficultyColor = (difficulty: string) => {
@@ -90,10 +104,21 @@ export default function QuestionsClient({
               </div>
 
               <div>
+                <label className="text-sm font-medium mb-2 block">Track</label>
+                <Tabs value={selectedTrack} onValueChange={handleTrackChange}>
+                  <TabsList className="w-full justify-start flex-wrap h-auto">
+                    {(Object.keys(TRACK_LABELS) as QuestionTrack[]).map((t) => (
+                      <TabsTrigger key={t} value={t} className="flex-none">{TRACK_LABELS[t]}</TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              <div>
                 <label className="text-sm font-medium mb-2 block">Category</label>
                 <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
                   <TabsList className="w-full justify-start flex-wrap h-auto">
-                    {categories.map((cat) => <TabsTrigger key={cat} value={cat} className="flex-none">{cat}</TabsTrigger>)}
+                    {trackCategories.map((cat) => <TabsTrigger key={cat} value={cat} className="flex-none">{cat}</TabsTrigger>)}
                   </TabsList>
                 </Tabs>
               </div>

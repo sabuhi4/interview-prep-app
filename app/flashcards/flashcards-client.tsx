@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { Question } from '@/lib/types';
+import { Question, QuestionTrack } from '@/lib/types';
 import FlashCard from '@/components/flashcard';
 import { ArrowLeft, ArrowRight, RotateCcw, GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -20,23 +20,38 @@ function shuffle<T>(arr: T[]): T[] {
   return copy;
 }
 
+const TRACK_LABELS: Record<QuestionTrack, string> = {
+  'frontend': 'Frontend Engineer',
+  'business-analyst': 'Business Analyst',
+};
+
 interface FlashcardsClientProps {
   initialQuestions: Question[];
-  initialCategories: string[];
 }
 
-export default function FlashcardsClient({ initialQuestions, initialCategories }: FlashcardsClientProps) {
+export default function FlashcardsClient({ initialQuestions }: FlashcardsClientProps) {
   const [questions] = useState<Question[]>(initialQuestions);
-  const [categories] = useState<string[]>(initialCategories);
+  const [selectedTrack, setSelectedTrack] = useState<QuestionTrack>('frontend');
   const [selectedCategory, setSelectedCategory] = useState('All');
+
+  const trackCategories = ['All', ...Array.from(
+    new Set(questions.filter(q => q.track === selectedTrack).map(q => q.category))
+  ).sort()];
+
+  const handleTrackChange = (track: string) => {
+    setSelectedTrack(track as QuestionTrack);
+    setSelectedCategory('All');
+  };
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionCards, setSessionCards] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
-  const filteredQuestions = selectedCategory === 'All'
-    ? questions
-    : questions.filter((q) => q.category === selectedCategory);
+  const filteredQuestions = questions.filter((q) => {
+    const matchesTrack = q.track === selectedTrack;
+    const matchesCategory = selectedCategory === 'All' || q.category === selectedCategory;
+    return matchesTrack && matchesCategory;
+  });
 
   const startSession = () => {
     const shuffled = shuffle(filteredQuestions);
@@ -125,12 +140,27 @@ export default function FlashcardsClient({ initialQuestions, initialCategories }
           <p className="text-slate-600 dark:text-slate-400">Review key concepts with interactive flip cards</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-            <TabsList className="w-full justify-start flex-wrap h-auto">
-              {categories.map((cat) => <TabsTrigger key={cat} value={cat} className="flex-none">{cat}</TabsTrigger>)}
-            </TabsList>
-          </Tabs>
+        <div className="space-y-3 mb-6">
+          <div>
+            <label className="text-sm font-medium mb-2 block">Track</label>
+            <Tabs value={selectedTrack} onValueChange={handleTrackChange}>
+              <TabsList className="w-full justify-start flex-wrap h-auto">
+                {(Object.keys(TRACK_LABELS) as QuestionTrack[]).map((t) => (
+                  <TabsTrigger key={t} value={t} className="flex-none">{TRACK_LABELS[t]}</TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <label className="text-sm font-medium mb-2 block">Category</label>
+            <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
+              <TabsList className="w-full justify-start flex-wrap h-auto">
+                {trackCategories.map((cat) => <TabsTrigger key={cat} value={cat} className="flex-none">{cat}</TabsTrigger>)}
+              </TabsList>
+            </Tabs>
+          </div>
 
           <Button
             onClick={startSession}
@@ -140,6 +170,7 @@ export default function FlashcardsClient({ initialQuestions, initialCategories }
             <GraduationCap className="w-4 h-4" />
             Start Studying ({filteredQuestions.length} cards)
           </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

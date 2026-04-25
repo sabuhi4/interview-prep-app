@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Frontend Interview Prep - Questions & Quizzes",
-  description: "Master frontend development with comprehensive interview questions and interactive quizzes",
+  title: "Interview Prep - Questions & Quizzes",
+  description: "Curated interview questions and interactive quizzes for frontend engineers and business analysts",
 };
 
 export default async function RootLayout({
