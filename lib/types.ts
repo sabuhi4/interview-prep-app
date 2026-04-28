@@ -42,3 +42,14 @@ export interface InitialProgress {
   bookmarkedIds: string[];
   doneIds: string[];
 }
+
+export type StoryTrack = 'po-ba' | 'frontend' | 'both';
+
+export interface Story {
+  id: string;
+  title: string;
+  body: string;
+  themes: string[];
+  track: StoryTrack;
+  display_order: number;
+}

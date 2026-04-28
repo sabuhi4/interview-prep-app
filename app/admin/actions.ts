@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@supabase/supabase-js';
-import { Question, QuizQuestion } from '@/lib/types';
+import { Question, QuizQuestion, Story } from '@/lib/types';
 import { generateQuestionId, validateQuestion, validateQuizQuestion } from '@/lib/api/admin';
 import { isAuthenticated } from '@/lib/auth';
 
@@ -210,6 +210,71 @@ export async function deleteQuizQuestionAction(id: string) {
       return { success: false, error: error.message };
     }
 
+    return { success: true };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: message };
+  }
+}
+
+export async function fetchStoriesForAdminAction() {
+  try {
+    await requireAdminAuth();
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data, error } = await supabaseAdmin
+      .from('stories')
+      .select('*')
+      .order('display_order');
+    if (error) return { success: false, error: error.message, data: [] };
+    return { success: true, data: data ?? [] };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: message, data: [] };
+  }
+}
+
+export async function createStoryAction(storyData: Omit<Story, 'id'>) {
+  try {
+    await requireAdminAuth();
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data, error } = await supabaseAdmin
+      .from('stories')
+      .insert([storyData])
+      .select()
+      .single();
+    if (error) return { success: false, error: error.message };
+    return { success: true, data };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: message };
+  }
+}
+
+export async function updateStoryAction(id: string, data: Partial<Omit<Story, 'id'>>) {
+  try {
+    await requireAdminAuth();
+    const supabaseAdmin = getSupabaseAdmin();
+    const { error } = await supabaseAdmin
+      .from('stories')
+      .update(data)
+      .eq('id', id);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: message };
+  }
+}
+
+export async function deleteStoryAction(id: string) {
+  try {
+    await requireAdminAuth();
+    const supabaseAdmin = getSupabaseAdmin();
+    const { error } = await supabaseAdmin
+      .from('stories')
+      .delete()
+      .eq('id', id);
+    if (error) return { success: false, error: error.message };
     return { success: true };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';

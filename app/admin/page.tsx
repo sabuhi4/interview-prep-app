@@ -10,14 +10,15 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft, Plus, Loader2, CheckCircle2, AlertCircle, LogOut,
-  Lock, Pencil, Search, X, Save,
+  Lock, Pencil, Search, X, Save, BookOpen, Trash2,
 } from 'lucide-react';
 import {
   createQuestionAction, createQuizQuestionAction, createBehavioralQuestionAction,
   updateQuestionAction, fetchAllQuestionsForAdminAction,
+  fetchStoriesForAdminAction, createStoryAction, updateStoryAction, deleteStoryAction,
 } from './actions';
 import { logoutAction } from '@/lib/auth';
-import { Question, QuizQuestion } from '@/lib/types';
+import { Question, QuizQuestion, Story, StoryTrack } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -30,7 +31,7 @@ const TEXTAREA_CLASS = 'w-full px-3 py-2 border border-slate-200 dark:border-sla
 
 export default function AdminPage() {
   const router = useRouter();
-  const [mainView, setMainView] = useState<'add' | 'manage'>('add');
+  const [mainView, setMainView] = useState<'add' | 'manage' | 'stories'>('add');
   const [activeTab, setActiveTab] = useState('qa');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -81,6 +82,118 @@ export default function AdminPage() {
     admin_only: false,
   });
 
+  const [stories, setStories] = useState<Story[]>([]);
+  const [storiesLoaded, setStoriesLoaded] = useState(false);
+  const [storiesLoading, setStoriesLoading] = useState(false);
+  const [storyEditingId, setStoryEditingId] = useState<string | null>(null);
+  const [storyForm, setStoryForm] = useState({
+    title: '',
+    body: '',
+    themes: '',
+    track: 'both' as StoryTrack,
+    display_order: 0,
+  });
+  const [storyEditForm, setStoryEditForm] = useState({
+    title: '',
+    body: '',
+    themes: '',
+    track: 'both' as StoryTrack,
+    display_order: 0,
+  });
+
+  const resetStoryForm = () => setStoryForm({ title: '', body: '', themes: '', track: 'both', display_order: 0 });
+
+  const loadStories = useCallback(async () => {
+    setStoriesLoading(true);
+    try {
+      const result = await fetchStoriesForAdminAction();
+      if (!result.success) {
+        setMessage({ type: 'error', text: `Failed to load stories: ${result.error}` });
+      }
+      setStories(result.data as Story[]);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      setMessage({ type: 'error', text: `Failed to load stories: ${msg}` });
+    } finally {
+      setStoriesLoading(false);
+      setStoriesLoaded(true);
+    }
+  }, []);
+
+  const handleStorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
+    try {
+      const result = await createStoryAction({
+        title: storyForm.title.trim(),
+        body: storyForm.body.trim(),
+        themes: storyForm.themes.split(',').map((t) => t.trim()).filter(Boolean),
+        track: storyForm.track,
+        display_order: storyForm.display_order,
+      });
+      if (!result.success) {
+        setMessage({ type: 'error', text: `Error: ${result.error}` });
+      } else {
+        setMessage({ type: 'success', text: 'Story added!' });
+        resetStoryForm();
+        setStoriesLoaded(false);
+      }
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      setMessage({ type: 'error', text: `Unexpected error: ${msg}` });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startStoryEdit = (s: Story) => {
+    setStoryEditingId(s.id);
+    setStoryEditForm({
+      title: s.title,
+      body: s.body,
+      themes: s.themes.join(', '),
+      track: s.track,
+      display_order: s.display_order,
+    });
+  };
+
+  const handleStoryEditSave = async () => {
+    if (!storyEditingId) return;
+    setLoading(true);
+    setMessage(null);
+    const updated = {
+      title: storyEditForm.title.trim(),
+      body: storyEditForm.body.trim(),
+      themes: storyEditForm.themes.split(',').map((t) => t.trim()).filter(Boolean),
+      track: storyEditForm.track,
+      display_order: storyEditForm.display_order,
+    };
+    const result = await updateStoryAction(storyEditingId, updated);
+    setLoading(false);
+    if (result.success) {
+      setMessage({ type: 'success', text: 'Story updated!' });
+      setStories((prev) => prev.map((s) => s.id === storyEditingId ? { ...s, ...updated } : s));
+      setStoryEditingId(null);
+    } else {
+      setMessage({ type: 'error', text: `Error: ${result.error}` });
+    }
+  };
+
+  const handleStoryDelete = async (id: string) => {
+    if (!confirm('Delete this story?')) return;
+    setLoading(true);
+    setMessage(null);
+    const result = await deleteStoryAction(id);
+    setLoading(false);
+    if (result.success) {
+      setMessage({ type: 'success', text: 'Story deleted.' });
+      setStories((prev) => prev.filter((s) => s.id !== id));
+    } else {
+      setMessage({ type: 'error', text: `Error: ${result.error}` });
+    }
+  };
+
   const loadQuestions = useCallback(async () => {
     setQuestionsLoading(true);
     try {
@@ -103,6 +216,12 @@ export default function AdminPage() {
       loadQuestions();
     }
   }, [mainView, questionsLoaded, loadQuestions]);
+
+  useEffect(() => {
+    if (mainView === 'stories' && !storiesLoaded) {
+      loadStories();
+    }
+  }, [mainView, storiesLoaded, loadStories]);
 
   const trackFilteredQuestions = manageTrack === 'All' ? allQuestions : allQuestions.filter(q => q.track === manageTrack);
   const manageCategories = ['All', ...Array.from(new Set(trackFilteredQuestions.map((q) => q.category))).sort()];
@@ -298,6 +417,13 @@ export default function AdminPage() {
           >
             <Pencil className="w-4 h-4 mr-2" />Manage Questions
           </Button>
+          <Button
+            variant={mainView === 'stories' ? 'default' : 'outline'}
+            onClick={() => setMainView('stories')}
+            className={mainView === 'stories' ? 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700' : ''}
+          >
+            <BookOpen className="w-4 h-4 mr-2" />Stories
+          </Button>
         </div>
 
         {mainView === 'add' && (
@@ -456,6 +582,142 @@ export default function AdminPage() {
               </Tabs>
             </CardContent>
           </Card>
+        )}
+
+        {mainView === 'stories' && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Add Story</CardTitle>
+                <CardDescription>Add a new STAR story to your listen library</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleStorySubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Title *</label>
+                      <Input placeholder="e.g., Leading the dashboard redesign" value={storyForm.title} onChange={(e) => setStoryForm({ ...storyForm, title: e.target.value })} required />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Display Order</label>
+                      <Input type="number" value={storyForm.display_order} onChange={(e) => setStoryForm({ ...storyForm, display_order: parseInt(e.target.value) || 0 })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Track *</label>
+                    <select
+                      value={storyForm.track}
+                      onChange={(e) => setStoryForm({ ...storyForm, track: e.target.value as StoryTrack })}
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="both">Both tracks</option>
+                      <option value="po-ba">PO / BA</option>
+                      <option value="frontend">Frontend</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Story Body *</label>
+                    <textarea className={`${TEXTAREA_CLASS} min-h-[180px]`} placeholder="Full STAR story text..." value={storyForm.body} onChange={(e) => setStoryForm({ ...storyForm, body: e.target.value })} required />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Themes (comma-separated)</label>
+                    <Input placeholder="e.g., leadership, conflict, ownership" value={storyForm.themes} onChange={(e) => setStoryForm({ ...storyForm, themes: e.target.value })} />
+                  </div>
+                  <Separator />
+                  <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700">
+                    {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Adding...</> : <><Plus className="w-4 h-4 mr-2" />Add Story</>}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Stories</CardTitle>
+                <CardDescription>
+                  {storiesLoading ? 'Loading...' : `${stories.length} stories`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {storiesLoading ? (
+                  <div className="py-12 flex justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+                  </div>
+                ) : stories.length === 0 ? (
+                  <p className="text-sm text-slate-500 py-6 text-center">No stories yet.</p>
+                ) : (
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {stories.map((s) => (
+                      <div key={s.id}>
+                        <div className="flex items-start gap-3 py-3 group">
+                          <span className="text-xs text-slate-400 w-6 flex-shrink-0 pt-1 text-right">{s.display_order}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap gap-1.5 mb-1">
+                              <Badge variant="outline" className="text-xs">{s.track}</Badge>
+                              {s.themes.map((t) => (
+                                <Badge key={t} className="text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">{t}</Badge>
+                              ))}
+                            </div>
+                            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{s.title}</p>
+                            <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">{s.body}</p>
+                          </div>
+                          <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => storyEditingId === s.id ? setStoryEditingId(null) : startStoryEdit(s)}>
+                              {storyEditingId === s.id ? <X className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+                            </Button>
+                            <Button variant="ghost" size="icon" className="w-8 h-8 text-red-500 hover:text-red-700" onClick={() => handleStoryDelete(s.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {storyEditingId === s.id && (
+                          <div className="pb-4 pl-9 space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-xs font-medium mb-1 block text-slate-500">Title</label>
+                                <Input value={storyEditForm.title} onChange={(e) => setStoryEditForm({ ...storyEditForm, title: e.target.value })} className="h-8 text-sm" />
+                              </div>
+                              <div>
+                                <label className="text-xs font-medium mb-1 block text-slate-500">Display Order</label>
+                                <Input type="number" value={storyEditForm.display_order} onChange={(e) => setStoryEditForm({ ...storyEditForm, display_order: parseInt(e.target.value) || 0 })} className="h-8 text-sm" />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium mb-1 block text-slate-500">Track</label>
+                              <select
+                                value={storyEditForm.track}
+                                onChange={(e) => setStoryEditForm({ ...storyEditForm, track: e.target.value as StoryTrack })}
+                                className="w-full h-8 px-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              >
+                                <option value="both">Both tracks</option>
+                                <option value="po-ba">PO / BA</option>
+                                <option value="frontend">Frontend</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium mb-1 block text-slate-500">Body</label>
+                              <textarea className={`${TEXTAREA_CLASS} min-h-[120px]`} value={storyEditForm.body} onChange={(e) => setStoryEditForm({ ...storyEditForm, body: e.target.value })} />
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium mb-1 block text-slate-500">Themes (comma-separated)</label>
+                              <Input value={storyEditForm.themes} onChange={(e) => setStoryEditForm({ ...storyEditForm, themes: e.target.value })} className="h-8 text-sm" />
+                            </div>
+                            <div className="flex gap-2 pt-1">
+                              <Button size="sm" onClick={handleStoryEditSave} disabled={loading} className="gap-1.5 bg-purple-600 hover:bg-purple-700">
+                                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}Save
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => setStoryEditingId(null)} disabled={loading}>Cancel</Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {mainView === 'manage' && (

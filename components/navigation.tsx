@@ -5,7 +5,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Code2, Settings, Menu, X, LogIn, LogOut, User } from 'lucide-react';
+import { Code2, Settings, BookOpen, Menu, X, LogIn, LogOut, User } from 'lucide-react';
 import { signOutAction } from '@/lib/user-auth';
 
 const ThemeToggle = dynamic(() => import('@/components/theme-toggle'), {
@@ -79,6 +79,11 @@ export default function Navigation({ user }: NavigationProps) {
                 </Link>
               </Button>
             )}
+            <Button asChild variant="ghost" size="icon" title="Stories">
+              <Link href="/stories">
+                <BookOpen className="w-4 h-4" />
+              </Link>
+            </Button>
             <Button asChild variant="ghost" size="icon" title="Admin Panel">
               <Link href="/admin">
                 <Settings className="w-4 h-4" />
@@ -138,6 +143,12 @@ export default function Navigation({ user }: NavigationProps) {
               </Link>
             </Button>
           )}
+          <Button asChild variant="ghost" className="w-full justify-start gap-2">
+            <Link href="/stories" onClick={() => setMenuOpen(false)}>
+              <BookOpen className="w-4 h-4" />
+              Stories
+            </Link>
+          </Button>
           <Button asChild variant="ghost" className="w-full justify-start gap-2">
             <Link href="/admin" onClick={() => setMenuOpen(false)}>
               <Settings className="w-4 h-4" />
