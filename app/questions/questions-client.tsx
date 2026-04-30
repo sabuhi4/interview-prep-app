@@ -18,6 +18,7 @@ import * as AccordionPrimitive from '@radix-ui/react-accordion';
 const TRACK_LABELS: Record<QuestionTrack, string> = {
   'frontend': 'Frontend Engineer',
   'business-analyst': 'Business Analyst',
+  'both': 'Both',
 };
 
 interface QuestionsClientProps {
@@ -48,7 +49,7 @@ export default function QuestionsClient({
   );
 
   const trackCategories = ['All', ...Array.from(
-    new Set(questions.filter(q => q.track === selectedTrack).map(q => q.category))
+    new Set(questions.filter(q => q.track === selectedTrack || q.track === 'both').map(q => q.category))
   ).sort()];
 
   const handleTrackChange = (track: string) => {
@@ -57,7 +58,7 @@ export default function QuestionsClient({
   };
 
   const filteredQuestions = questions.filter((q) => {
-    const matchesTrack = q.track === selectedTrack;
+    const matchesTrack = q.track === selectedTrack || q.track === 'both';
     const matchesSearch =
       q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
       q.answer.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -1,4 +1,4 @@
-export type QuestionTrack = 'frontend' | 'business-analyst';
+export type QuestionTrack = 'frontend' | 'business-analyst' | 'both';
 
 export interface Question {
   id: string;
@@ -52,4 +52,5 @@ export interface Story {
   themes: string[];
   track: StoryTrack;
   display_order: number;
+  prompt?: string;
 }

@@ -19,6 +19,7 @@ import {
 const TRACK_LABELS: Record<QuestionTrack, string> = {
   'frontend': 'Frontend Engineer',
   'business-analyst': 'Business Analyst',
+  'both': 'Both',
 };
 
 interface ListenClientProps {
@@ -82,7 +83,7 @@ export default function ListenClient({ questions, initialProgress, isAuthenticat
   const playUrlRef = useRef<(gen: number, url: string) => void>(() => {});
 
   const trackCategories = ['All', ...Array.from(
-    new Set(questions.filter(q => q.track === selectedTrack).map(q => q.category))
+    new Set(questions.filter(q => q.track === selectedTrack || q.track === 'both').map(q => q.category))
   ).sort()];
 
   const handleTrackChange = (track: string) => {
@@ -91,7 +92,7 @@ export default function ListenClient({ questions, initialProgress, isAuthenticat
   };
 
   const filteredQuestions = questions.filter((q) => {
-    const matchesTrack = q.track === selectedTrack;
+    const matchesTrack = q.track === selectedTrack || q.track === 'both';
     const matchesCategory = selectedCategory === 'All' || q.category === selectedCategory;
     const matchesDifficulty = selectedDifficulty === 'All' || q.difficulty === selectedDifficulty;
     const matchesBookmark = !onlyBookmarked || bookmarkedIds.includes(q.id);

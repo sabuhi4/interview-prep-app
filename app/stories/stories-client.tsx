@@ -378,6 +378,9 @@ export default function StoriesClient({ stories }: StoriesClientProps) {
                   <span className="text-xs text-slate-400 w-5 text-right flex-shrink-0">{i + 1}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{story.title}</p>
+                    {story.prompt && (
+                      <p className="text-xs text-slate-400 truncate mt-0.5 italic">{story.prompt}</p>
+                    )}
                     <div className="flex gap-1 mt-1 flex-wrap">
                       <Badge variant="outline" className="text-xs">{story.track}</Badge>
                       {story.themes.slice(0, 3).map(t => (
@@ -424,6 +427,13 @@ export default function StoriesClient({ stories }: StoriesClientProps) {
                 ))}
                 {generating && <Loader2 className="w-4 h-4 animate-spin text-slate-400 ml-auto" />}
               </div>
+
+              {story.prompt && (
+                <div className="mb-4 p-3 rounded-lg bg-purple-50 dark:bg-purple-950 border border-purple-100 dark:border-purple-900">
+                  <p className="text-xs font-medium text-purple-500 uppercase tracking-wide mb-1">Interview Question</p>
+                  <p className="text-sm text-purple-800 dark:text-purple-200">{story.prompt}</p>
+                </div>
+              )}
 
               <div className={`mb-5 transition-opacity duration-300 ${phase === 'title' ? 'opacity-100' : 'opacity-40'}`}>
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Story</p>

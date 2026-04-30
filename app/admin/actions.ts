@@ -95,47 +95,9 @@ export async function createQuizQuestionAction(questionData: Omit<QuizQuestion, 
   }
 }
 
-export async function createBehavioralQuestionAction(questionData: {
-  difficulty: 'easy' | 'medium' | 'hard';
-  question: string;
-  answer: string;
-  tags: string[];
-}) {
-  try {
-    await requireAdminAuth();
-    const supabaseAdmin = getSupabaseAdmin();
-    const validation = validateQuestion({ ...questionData, category: 'Behavioral' });
-    if (!validation.valid) {
-      return { success: false, error: validation.errors.join(', ') };
-    }
-
-    const id = generateQuestionId('behavioral', 'question');
-
-    const { data, error } = await supabaseAdmin
-      .from('questions')
-      .insert([{
-        id,
-        category: 'Behavioral',
-        track: 'frontend',
-        admin_only: true,
-        ...questionData,
-      }])
-      .select()
-      .single();
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data };
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return { success: false, error: message };
-  }
-}
 
 export async function updateQuestionAction(id: string, data: {
-  track?: 'frontend' | 'business-analyst';
+  track?: 'frontend' | 'business-analyst' | 'both';
   category?: string;
   difficulty?: 'easy' | 'medium' | 'hard';
   question?: string;

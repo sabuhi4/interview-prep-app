@@ -13,12 +13,12 @@ import {
   Lock, Pencil, Search, X, Save, BookOpen, Trash2,
 } from 'lucide-react';
 import {
-  createQuestionAction, createQuizQuestionAction, createBehavioralQuestionAction,
+  createQuestionAction, createQuizQuestionAction,
   updateQuestionAction, fetchAllQuestionsForAdminAction,
   fetchStoriesForAdminAction, createStoryAction, updateStoryAction, deleteStoryAction,
 } from './actions';
 import { logoutAction } from '@/lib/auth';
-import { Question, QuizQuestion, Story, StoryTrack } from '@/lib/types';
+import { Question, QuestionTrack, QuizQuestion, Story, StoryTrack } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -37,15 +37,8 @@ export default function AdminPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [qaForm, setQaForm] = useState({
-    track: 'frontend' as 'frontend' | 'business-analyst',
+    track: 'frontend' as QuestionTrack,
     category: '',
-    difficulty: 'medium' as 'easy' | 'medium' | 'hard',
-    question: '',
-    answer: '',
-    tags: '',
-  });
-
-  const [behavioralForm, setBehavioralForm] = useState({
     difficulty: 'medium' as 'easy' | 'medium' | 'hard',
     question: '',
     answer: '',
@@ -69,11 +62,11 @@ export default function AdminPage() {
   const [questionsLoaded, setQuestionsLoaded] = useState(false);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [manageSearch, setManageSearch] = useState('');
-  const [manageTrack, setManageTrack] = useState<'All' | 'frontend' | 'business-analyst'>('All');
+  const [manageTrack, setManageTrack] = useState<'All' | 'frontend' | 'business-analyst' | 'both'>('All');
   const [manageCategory, setManageCategory] = useState('All');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
-    track: 'frontend' as 'frontend' | 'business-analyst',
+    track: 'frontend' as QuestionTrack,
     category: '',
     difficulty: 'medium' as 'easy' | 'medium' | 'hard',
     question: '',
@@ -92,6 +85,7 @@ export default function AdminPage() {
     themes: '',
     track: 'both' as StoryTrack,
     display_order: 0,
+    prompt: '',
   });
   const [storyEditForm, setStoryEditForm] = useState({
     title: '',
@@ -99,9 +93,10 @@ export default function AdminPage() {
     themes: '',
     track: 'both' as StoryTrack,
     display_order: 0,
+    prompt: '',
   });
 
-  const resetStoryForm = () => setStoryForm({ title: '', body: '', themes: '', track: 'both', display_order: 0 });
+  const resetStoryForm = () => setStoryForm({ title: '', body: '', themes: '', track: 'both', display_order: 0, prompt: '' });
 
   const loadStories = useCallback(async () => {
     setStoriesLoading(true);
@@ -131,6 +126,7 @@ export default function AdminPage() {
         themes: storyForm.themes.split(',').map((t) => t.trim()).filter(Boolean),
         track: storyForm.track,
         display_order: storyForm.display_order,
+        prompt: storyForm.prompt.trim() || undefined,
       });
       if (!result.success) {
         setMessage({ type: 'error', text: `Error: ${result.error}` });
@@ -155,6 +151,7 @@ export default function AdminPage() {
       themes: s.themes.join(', '),
       track: s.track,
       display_order: s.display_order,
+      prompt: s.prompt ?? '',
     });
   };
 
@@ -168,6 +165,7 @@ export default function AdminPage() {
       themes: storyEditForm.themes.split(',').map((t) => t.trim()).filter(Boolean),
       track: storyEditForm.track,
       display_order: storyEditForm.display_order,
+      prompt: storyEditForm.prompt.trim() || undefined,
     };
     const result = await updateStoryAction(storyEditingId, updated);
     setLoading(false);
@@ -276,34 +274,8 @@ export default function AdminPage() {
     }
   };
 
-  const resetBehavioralForm = () => setBehavioralForm({ difficulty: 'medium', question: '', answer: '', tags: '' });
   const resetQaForm = () => setQaForm({ track: 'frontend', category: '', difficulty: 'medium', question: '', answer: '', tags: '' });
   const resetQuizForm = () => setQuizForm({ category: '', difficulty: 'medium', question: '', option1: '', option2: '', option3: '', option4: '', correctAnswer: 0, explanation: '', tags: '' });
-
-  const handleBehavioralSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage(null);
-    try {
-      const result = await createBehavioralQuestionAction({
-        difficulty: behavioralForm.difficulty,
-        question: behavioralForm.question.trim(),
-        answer: behavioralForm.answer.trim(),
-        tags: behavioralForm.tags.split(',').map((t) => t.trim()).filter((t) => t),
-      });
-      if (!result.success) {
-        setMessage({ type: 'error', text: `Error: ${result.error}` });
-      } else {
-        setMessage({ type: 'success', text: 'Behavioral question added successfully!' });
-        resetBehavioralForm();
-      }
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Unknown error';
-      setMessage({ type: 'error', text: `Unexpected error: ${msg}` });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleQaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -437,9 +409,6 @@ export default function AdminPage() {
                 <TabsList className="w-full justify-start flex-wrap h-auto mb-6">
                   <TabsTrigger value="qa" className="flex-none">Q&A Question</TabsTrigger>
                   <TabsTrigger value="quiz" className="flex-none">Quiz Question</TabsTrigger>
-                  <TabsTrigger value="behavioral" className="flex-none gap-1.5">
-                    <Lock className="w-3 h-3" />Behavioral
-                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="qa">
@@ -450,6 +419,7 @@ export default function AdminPage() {
                         <TabsList className="w-full justify-start flex-wrap h-auto">
                           <TabsTrigger value="frontend" className="flex-none">Frontend Engineer</TabsTrigger>
                           <TabsTrigger value="business-analyst" className="flex-none">Business Analyst</TabsTrigger>
+                          <TabsTrigger value="both" className="flex-none">Both</TabsTrigger>
                         </TabsList>
                       </Tabs>
                     </div>
@@ -538,47 +508,6 @@ export default function AdminPage() {
                   </form>
                 </TabsContent>
 
-                <TabsContent value="behavioral">
-                  <div className="mb-4 p-3 rounded-lg bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
-                    <p className="text-sm text-purple-700 dark:text-purple-300">
-                      Behavioral questions are only visible to authenticated admins.
-                    </p>
-                  </div>
-                  <form onSubmit={handleBehavioralSubmit} className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Category</label>
-                      <Input value="Behavioral" disabled className="opacity-60" />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Difficulty *</label>
-                      <Tabs value={behavioralForm.difficulty} onValueChange={(v) => setBehavioralForm({ ...behavioralForm, difficulty: v as 'easy' | 'medium' | 'hard' })}>
-                        <TabsList className="w-full justify-start flex-wrap h-auto">
-                          <TabsTrigger value="easy" className="flex-none">Easy</TabsTrigger>
-                          <TabsTrigger value="medium" className="flex-none">Medium</TabsTrigger>
-                          <TabsTrigger value="hard" className="flex-none">Hard</TabsTrigger>
-                        </TabsList>
-                      </Tabs>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Question *</label>
-                      <textarea className={`${TEXTAREA_CLASS} min-h-[100px]`} placeholder="e.g., Tell me about yourself. Describe a time you handled conflict." value={behavioralForm.question} onChange={(e) => setBehavioralForm({ ...behavioralForm, question: e.target.value })} required />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Guidance / Model Answer *</label>
-                      <textarea className={`${TEXTAREA_CLASS} min-h-[150px]`} placeholder="How to structure the answer, key points to cover, STAR method tips..." value={behavioralForm.answer} onChange={(e) => setBehavioralForm({ ...behavioralForm, answer: e.target.value })} required />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Tags * (comma-separated)</label>
-                      <Input placeholder="e.g., communication, leadership, conflict" value={behavioralForm.tags} onChange={(e) => setBehavioralForm({ ...behavioralForm, tags: e.target.value })} required />
-                      <p className="text-xs text-slate-500 mt-1">Separate tags with commas</p>
-                    </div>
-                    <Separator />
-                    <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700">
-                      {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Adding Question...</> : <><Plus className="w-4 h-4 mr-2" />Add Behavioral Question</>}
-                    </Button>
-                  </form>
-                </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
@@ -622,6 +551,11 @@ export default function AdminPage() {
                   <div>
                     <label className="text-sm font-medium mb-2 block">Themes (comma-separated)</label>
                     <Input placeholder="e.g., leadership, conflict, ownership" value={storyForm.themes} onChange={(e) => setStoryForm({ ...storyForm, themes: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Interview Question (optional)</label>
+                    <Input placeholder="e.g., Tell me about a time you led a project" value={storyForm.prompt} onChange={(e) => setStoryForm({ ...storyForm, prompt: e.target.value })} />
+                    <p className="text-xs text-slate-500 mt-1">The behavioral question this story answers</p>
                   </div>
                   <Separator />
                   <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700">
@@ -703,6 +637,10 @@ export default function AdminPage() {
                               <label className="text-xs font-medium mb-1 block text-slate-500">Themes (comma-separated)</label>
                               <Input value={storyEditForm.themes} onChange={(e) => setStoryEditForm({ ...storyEditForm, themes: e.target.value })} className="h-8 text-sm" />
                             </div>
+                            <div>
+                              <label className="text-xs font-medium mb-1 block text-slate-500">Interview Question (optional)</label>
+                              <Input value={storyEditForm.prompt} onChange={(e) => setStoryEditForm({ ...storyEditForm, prompt: e.target.value })} className="h-8 text-sm" placeholder="e.g., Tell me about a time you led a project" />
+                            </div>
                             <div className="flex gap-2 pt-1">
                               <Button size="sm" onClick={handleStoryEditSave} disabled={loading} className="gap-1.5 bg-purple-600 hover:bg-purple-700">
                                 {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}Save
@@ -748,7 +686,7 @@ export default function AdminPage() {
                     <select
                       value={manageTrack}
                       onChange={(e) => {
-                        setManageTrack(e.target.value as 'All' | 'frontend' | 'business-analyst');
+                        setManageTrack(e.target.value as 'All' | 'frontend' | 'business-analyst' | 'both');
                         setManageCategory('All');
                       }}
                       className="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -756,6 +694,7 @@ export default function AdminPage() {
                       <option value="All">All Tracks</option>
                       <option value="frontend">Frontend</option>
                       <option value="business-analyst">Business Analyst</option>
+                      <option value="both">Both</option>
                     </select>
                     <select
                       value={manageCategory}
@@ -806,11 +745,12 @@ export default function AdminPage() {
                                 <label className="text-xs font-medium mb-1 block text-slate-500">Track</label>
                                 <select
                                   value={editForm.track}
-                                  onChange={(e) => setEditForm({ ...editForm, track: e.target.value as 'frontend' | 'business-analyst' })}
+                                  onChange={(e) => setEditForm({ ...editForm, track: e.target.value as QuestionTrack })}
                                   className="w-full h-8 px-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 >
                                   <option value="frontend">Frontend</option>
                                   <option value="business-analyst">Business Analyst</option>
+                                  <option value="both">Both</option>
                                 </select>
                               </div>
                               <div>

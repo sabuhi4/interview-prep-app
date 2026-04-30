@@ -23,6 +23,7 @@ function shuffle<T>(arr: T[]): T[] {
 const TRACK_LABELS: Record<QuestionTrack, string> = {
   'frontend': 'Frontend Engineer',
   'business-analyst': 'Business Analyst',
+  'both': 'Both',
 };
 
 interface FlashcardsClientProps {
@@ -35,7 +36,7 @@ export default function FlashcardsClient({ initialQuestions }: FlashcardsClientP
   const [selectedCategory, setSelectedCategory] = useState('All');
 
   const trackCategories = ['All', ...Array.from(
-    new Set(questions.filter(q => q.track === selectedTrack).map(q => q.category))
+    new Set(questions.filter(q => q.track === selectedTrack || q.track === 'both').map(q => q.category))
   ).sort()];
 
   const handleTrackChange = (track: string) => {
@@ -48,7 +49,7 @@ export default function FlashcardsClient({ initialQuestions }: FlashcardsClientP
   const [isFlipped, setIsFlipped] = useState(false);
 
   const filteredQuestions = questions.filter((q) => {
-    const matchesTrack = q.track === selectedTrack;
+    const matchesTrack = q.track === selectedTrack || q.track === 'both';
     const matchesCategory = selectedCategory === 'All' || q.category === selectedCategory;
     return matchesTrack && matchesCategory;
   });
